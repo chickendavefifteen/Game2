@@ -1,44 +1,58 @@
-// Logical game resolution — all game coordinates are in these units.
-// Phaser scales this up to fill the device screen with integer/near-integer scaling.
-export const GAME_WIDTH = 480;
-export const GAME_HEIGHT = 270;
+// Portrait resolution — 270×480 (9:16)
+export const GAME_WIDTH  = 270;
+export const GAME_HEIGHT = 480;
 
-// Tile size in logical pixels
 export const TILE_SIZE = 16;
 
-// Map dimensions in tiles
-export const MAP_COLS = 30;  // 480 / 16
-export const MAP_ROWS = 17;  // 270 / 16 (roughly)
+// ── Hormuz Strait coastline shape ───────────────────────────────────────────
+// The strait runs west(left)→east(right). The Iranian coast (north) angles
+// downward toward the east. The Musandam/Gulf-state coast (south) angles
+// upward toward the east — creating the real narrowing funnel shape.
+//
+// northCoastY(x): y coordinate of the Iranian coastline at a given x
+// southCoastY(x): y coordinate of the southern coastline at a given x
+//
+export function northCoastY(x: number): number {
+  const t = x / GAME_WIDTH;
+  // Starts at 155 on the left (wide Persian Gulf opening)
+  // Drops to 120 on the right (Iran headlands narrowing the strait)
+  // Slight concave bay shape in the middle
+  return Math.round(155 - 35 * t - 18 * Math.sin(Math.PI * t));
+}
 
-// Coastline tile rows (inclusive)
-export const NORTH_COAST_ROWS = { start: 0, end: 3 };   // Iran / silos
-export const WATER_ROWS       = { start: 4, end: 12 };  // Strait
-export const SOUTH_COAST_ROWS = { start: 13, end: 16 }; // Gulf states / cities
+export function southCoastY(x: number): number {
+  const t = x / GAME_WIDTH;
+  // Starts at 340 on the left, rises to 310 on the right
+  // Musandam peninsula creates a bump at ~75% across
+  return Math.round(340 - 30 * t + 22 * Math.sin(Math.PI * (t - 0.1)) * Math.max(0, t - 0.4));
+}
 
-// Ship lane Y positions (world pixels)
-export const SHIP_LANE_Y = [
-  TILE_SIZE * 6 + TILE_SIZE / 2,   // ~104
-  TILE_SIZE * 10 + TILE_SIZE / 2,  // ~168
-];
+// Water zone for aircraft patrol (inside the strait)
+export const WATER_Y_MIN = 160;
+export const WATER_Y_MAX = 310;
 
-// City world positions (center X, Y)
-export const CITY_POSITIONS: { x: number; y: number; name: string }[] = [
-  { x: 80,  y: TILE_SIZE * 15, name: 'Abu Dhabi' },
-  { x: 240, y: TILE_SIZE * 15, name: 'Dubai' },
-  { x: 400, y: TILE_SIZE * 15, name: 'Muscat' },
-];
+// Ship lanes — horizontal tracks inside the strait
+export const SHIP_LANE_Y = [210, 250, 285];
 
-// Silo positions along north coast
+// Silo positions along the Iranian (north) coast
+// Spaced across the width, sitting just above northCoastY
 export const SILO_POSITIONS: { x: number; y: number }[] = [
-  { x: 40,  y: TILE_SIZE * 2 },
-  { x: 90,  y: TILE_SIZE * 1 },
-  { x: 140, y: TILE_SIZE * 2 },
-  { x: 190, y: TILE_SIZE * 1 },
-  { x: 240, y: TILE_SIZE * 2 },
-  { x: 300, y: TILE_SIZE * 2 },
-  { x: 360, y: TILE_SIZE * 1 },
-  { x: 420, y: TILE_SIZE * 2 },
+  { x: 28,  y: 108 },
+  { x: 68,  y: 96  },
+  { x: 108, y: 88  },
+  { x: 148, y: 80  },
+  { x: 188, y: 75  },
+  { x: 218, y: 70  },
+  { x: 245, y: 68  },
+  { x: 258, y: 80  },
 ];
 
-// Aircraft starting position
-export const AIRCRAFT_START = { x: GAME_WIDTH / 2, y: TILE_SIZE * 8 };
+// City positions along the southern (Gulf state) coast
+export const CITY_POSITIONS: { x: number; y: number; name: string }[] = [
+  { x: 45,  y: 372, name: 'Abu Dhabi' },
+  { x: 135, y: 362, name: 'Dubai'     },
+  { x: 225, y: 348, name: 'Muscat'    },
+];
+
+// Aircraft starting position (center of the strait)
+export const AIRCRAFT_START = { x: GAME_WIDTH / 2, y: 245 };
