@@ -13,13 +13,13 @@ export class PreloadScene extends Phaser.Scene {
     this.load.on('progress', (v: number) => { bar.width = Math.round(180 * v); });
     void barBg;
 
-    // Spritesheets — updated frame sizes for 2× sprites
-    this.load.spritesheet('aircraft',         'assets/sprites/aircraft.png',         { frameWidth: 32,  frameHeight: 32 });
-    this.load.spritesheet('silo',             'assets/sprites/silo.png',             { frameWidth: 32,  frameHeight: 32 });
-    this.load.spritesheet('explosion',        'assets/sprites/explosion.png',        { frameWidth: 32,  frameHeight: 32 });
-    this.load.spritesheet('ship',             'assets/sprites/ship.png',             { frameWidth: 64,  frameHeight: 24 });
-    this.load.spritesheet('enemy_missile',    'assets/sprites/enemy_missile.png',    { frameWidth: 14,  frameHeight: 22 });
-    this.load.spritesheet('aircraft_missile', 'assets/sprites/aircraft_missile.png', { frameWidth: 10,  frameHeight: 16 });
+    // Spritesheets — cartoony art, new frame sizes
+    this.load.spritesheet('aircraft',         'assets/sprites/aircraft.png',         { frameWidth: 48,  frameHeight: 48 });
+    this.load.spritesheet('silo',             'assets/sprites/silo.png',             { frameWidth: 48,  frameHeight: 48 });
+    this.load.spritesheet('explosion',        'assets/sprites/explosion.png',        { frameWidth: 48,  frameHeight: 48 });
+    this.load.spritesheet('ship',             'assets/sprites/ship.png',             { frameWidth: 80,  frameHeight: 36 });
+    this.load.spritesheet('enemy_missile',    'assets/sprites/enemy_missile.png',    { frameWidth: 20,  frameHeight: 36 });
+    this.load.spritesheet('aircraft_missile', 'assets/sprites/aircraft_missile.png', { frameWidth: 14,  frameHeight: 24 });
     this.load.spritesheet('terrain',          'assets/sprites/terrain.png',          { frameWidth: 16,  frameHeight: 16 });
     this.load.spritesheet('oil_slick',        'assets/sprites/oil_slick.png',        { frameWidth: 32,  frameHeight: 10 });
 
