@@ -31,7 +31,7 @@ export class Silo extends Phaser.GameObjects.Sprite {
     this.setDepth(3);
     this.setOrigin(0.5, 0.5);
 
-    this.timerBar = new SiloTimer(scene, x, y - 14);
+    this.timerBar = new SiloTimer(scene, x, y - 18);
     this.timerBar.setVisible(false);
   }
 
@@ -75,7 +75,7 @@ export class Silo extends Phaser.GameObjects.Sprite {
 
       const ratio = Math.max(0, this.countdownRemaining / this.countdownTotal);
       const warn = this.countdownRemaining <= BALANCE.silo.warningThresholdSeconds;
-      this.timerBar.update(ratio, warn);
+      this.timerBar.update(ratio, warn, this.countdownRemaining);
 
       if (warn) {
         EventBus.emit('siloWarning', { siloId: this.siloId, timeRemaining: this.countdownRemaining });

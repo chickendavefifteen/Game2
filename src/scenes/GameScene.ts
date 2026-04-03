@@ -234,27 +234,64 @@ export class GameScene extends Phaser.Scene {
     });
   }
 
+  private bombCountText!:    Phaser.GameObjects.Text;
+  private missileCountText!: Phaser.GameObjects.Text;
+
   private createHUD(): void {
     this.alertBanner = new AlertBanner(this);
 
+    const BY = GAME_HEIGHT - 34;   // button centre Y
+    const BH = 34;                  // button height
+    const BW = 116;                 // button width
+
     // ── BOMB button — bottom left ──
-    const bombBtn = this.add.rectangle(34, GAME_HEIGHT - 28, 58, 22, 0x334455, 0.88)
-      .setDepth(60).setScrollFactor(0).setStrokeStyle(1, 0x88aacc, 0.8).setInteractive();
-    this.add.text(34, GAME_HEIGHT - 28, '💣 BOMB', {
-      fontSize: '6px', color: '#aaccff', fontFamily: 'monospace'
-    }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-    bombBtn.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      ptr.event.stopPropagation(); this.handleBombButton();
+    const bombBg = this.add.rectangle(4, BY, BW, BH, 0x1a2a44, 0.95)
+      .setOrigin(0, 0.5).setDepth(60).setScrollFactor(0)
+      .setStrokeStyle(2, 0x4488cc).setInteractive();
+
+    this.add.text(14, BY - 7, '💣  BOMB', {
+      fontSize: '8px', color: '#aaddff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.bombCountText = this.add.text(14, BY + 8, `×${this.aircraft?.bombs ?? BALANCE.aircraft.startingBombs}`, {
+      fontSize: '6px', color: '#ffdd88', fontFamily: 'monospace',
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    bombBg.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      ptr.event.stopPropagation();
+      this.handleBombButton();
+      this.bombCountText.setText(`×${this.aircraft.bombs}`);
     });
 
     // ── MISSILE button — bottom right ──
-    const missileBtn = this.add.rectangle(GAME_WIDTH - 38, GAME_HEIGHT - 28, 64, 22, 0x443355, 0.88)
-      .setDepth(60).setScrollFactor(0).setStrokeStyle(1, 0xaa88cc, 0.8).setInteractive();
-    this.add.text(GAME_WIDTH - 38, GAME_HEIGHT - 28, '🚀 MISSILE', {
-      fontSize: '6px', color: '#ddaaff', fontFamily: 'monospace'
-    }).setOrigin(0.5).setDepth(61).setScrollFactor(0);
-    missileBtn.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
-      ptr.event.stopPropagation(); this.handleMissileButton();
+    const missileBg = this.add.rectangle(GAME_WIDTH - 4, BY, BW, BH, 0x2a1a44, 0.95)
+      .setOrigin(1, 0.5).setDepth(60).setScrollFactor(0)
+      .setStrokeStyle(2, 0xaa44cc).setInteractive();
+
+    this.add.text(GAME_WIDTH - 14, BY - 7, '🚀  MISSILE', {
+      fontSize: '8px', color: '#ddaaff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 2,
+    }).setOrigin(1, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.missileCountText = this.add.text(GAME_WIDTH - 14, BY + 8, `×${this.aircraft?.missiles ?? BALANCE.aircraft.startingMissiles}`, {
+      fontSize: '6px', color: '#ffdd88', fontFamily: 'monospace',
+    }).setOrigin(1, 0.5).setDepth(62).setScrollFactor(0);
+
+    missileBg.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+      ptr.event.stopPropagation();
+      this.handleMissileButton();
+      this.missileCountText.setText(`×${this.aircraft.missiles}`);
+    });
+
+    // ── TAP HINT (fades after first tap) ──
+    const tapHint = this.add.text(GAME_WIDTH / 2, 320, 'TAP SILO TO INTERCEPT', {
+      fontSize: '5px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5).setDepth(62).setAlpha(0.8);
+    this.tweens.add({
+      targets: tapHint, alpha: 0, delay: 3500, duration: 1000,
+      onComplete: () => tapHint.destroy(),
     });
   }
 
