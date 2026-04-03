@@ -1,0 +1,24 @@
+{
+  "name": "hormuz-defender",
+  "version": "1.0.0",
+  "description": "Strait of Hormuz pixel art defender game",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc && vite build",
+    "preview": "vite preview",
+    "generate-assets": "node scripts/generate-assets.mjs"
+  },
+  "dependencies": {
+    "canvas": "^3.2.3",
+    "phaser": "^3.80.1"
+  },
+  "devDependencies": {
+    "@capacitor/android": "^6.0.0",
+    "@capacitor/cli": "^6.0.0",
+    "@capacitor/core": "^6.0.0",
+    "@capacitor/ios": "^6.0.0",
+    "typescript": "^5.4.5",
+    "vite": "^5.2.11"
+  }
+}
