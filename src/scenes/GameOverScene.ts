@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
 import { getRank, DIFFICULTIES, Difficulty } from '../config/BalanceConfig';
 import { saveScore, isHighScore } from '../utils/Leaderboard';
+import { sounds } from '../audio/SoundSystem';
 
 interface MissionReport {
   score: number; oilTransported: number; oilLost: number;
@@ -27,6 +28,10 @@ export class GameOverScene extends Phaser.Scene {
   init(data: MissionReport): void { this.data_ = data; }
 
   create(): void {
+    sounds.init();
+    if (this.data_.victory) {
+      sounds.playVictory();
+    }
     this.buildReport(this.data_);
   }
 
@@ -286,16 +291,74 @@ export class GameOverScene extends Phaser.Scene {
         onComplete: () => this.scene.start('GameScene') });
     });
 
-    const lbBtn = makeBtn('🏆  LEADERBOARD', y + 56, 0x0e0e06, 0xaaaa22, '#ffee44');
+    // Share score button
+    this.buildShareButton(data, y + 56);
+
+    const lbBtn = makeBtn('🏆  LEADERBOARD', y + 88, 0x0e0e06, 0xaaaa22, '#ffee44');
     lbBtn.on('pointerdown', () => {
       this.tweens.add({ targets: lbBtn, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
         onComplete: () => this.scene.start('LeaderboardScene') });
     });
 
-    const menuBtn = makeBtn('◀  MAIN MENU', y + 94, 0x0d1228, 0x3366cc, '#88aaff');
+    const menuBtn = makeBtn('◀  MAIN MENU', y + 122, 0x0d1228, 0x3366cc, '#88aaff');
     menuBtn.on('pointerdown', () => {
       this.tweens.add({ targets: menuBtn, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
         onComplete: () => this.scene.start('MenuScene') });
     });
+  }
+
+  private buildShareButton(data: MissionReport, cy: number): void {
+    const rank = getRank(data.score);
+    const shareText = `🎮 Hormuz Defender — ${rank.title.toUpperCase()} — Score: ${data.score.toLocaleString()} | Wave ${data.wave} | ${data.difficulty.toUpperCase()} difficulty | Accuracy ${data.efficiency}% — play free at https://itch.io`;
+
+    const gfx = this.add.graphics();
+    let copied = false;
+    const draw = (hover: boolean, done: boolean) => {
+      gfx.clear();
+      gfx.fillStyle(done ? 0x0e2a0e : (hover ? 0x0e1a2a : 0x060e18), 0.94);
+      gfx.fillRoundedRect(GAME_WIDTH / 2 - 92, cy - 14, 184, 28, 8);
+      gfx.lineStyle(2, done ? 0x22aa44 : 0x3355aa, hover ? 0.9 : 0.6);
+      gfx.strokeRoundedRect(GAME_WIDTH / 2 - 92, cy - 14, 184, 28, 8);
+    };
+    draw(false, false);
+
+    const label = this.add.text(GAME_WIDTH / 2, cy, '📋  COPY SCORE', {
+      fontSize: '9px', color: '#88aaff', fontFamily: 'monospace', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5);
+
+    const hit = this.add.rectangle(GAME_WIDTH / 2, cy, 184, 28, 0, 0).setInteractive();
+    hit.on('pointerover', () => { if (!copied) draw(true, false); });
+    hit.on('pointerout',  () => { if (!copied) draw(false, false); });
+    hit.on('pointerdown', () => {
+      sounds.playClick();
+      const doShare = () => {
+        copied = true;
+        draw(false, true);
+        label.setText('✓  COPIED!').setColor('#44ff88');
+      };
+      // Try Web Share API first (mobile)
+      if (navigator.share) {
+        navigator.share({ title: 'Hormuz Defender', text: shareText })
+          .then(doShare).catch(() => this.copyToClipboard(shareText, doShare));
+      } else {
+        this.copyToClipboard(shareText, doShare);
+      }
+    });
+  }
+
+  private copyToClipboard(text: string, onDone: () => void): void {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(onDone).catch(() => {
+        // Fallback: create temp textarea
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        document.execCommand('copy');
+        ta.remove();
+        onDone();
+      });
+    }
   }
 }

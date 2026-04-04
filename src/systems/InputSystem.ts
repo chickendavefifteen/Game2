@@ -16,11 +16,7 @@ export class InputSystem {
   private silos: Silo[];
   private callbacks: InputCallbacks;
 
-  private lastTapTime: number = 0;
-  private lastTapX: number = 0;
-  private lastTapY: number = 0;
-  private readonly DOUBLE_TAP_MS = 350;
-  private readonly SILO_TAP_RADIUS = TILE_SIZE * 2;
+  private readonly SILO_TAP_RADIUS = TILE_SIZE * 2.5;
 
   private missileSelectMode: boolean = false;
   private reticle: Phaser.GameObjects.Sprite;
@@ -38,7 +34,6 @@ export class InputSystem {
 
     this.reticle = scene.add.sprite(0, 0, 'reticle').setDepth(30).setVisible(false);
 
-    // Listen for taps on the game world
     scene.input.on('pointerdown', this.handlePointerDown, this);
     scene.input.on('pointermove', this.handlePointerMove, this);
   }
@@ -53,13 +48,7 @@ export class InputSystem {
     this.reticle.setVisible(false);
   }
 
-  update(_delta: number): void {
-    // Keyboard support (desktop testing)
-    const keys = this.scene.input.keyboard;
-    if (!keys) return;
-    // Space = drop bomb
-    // Keys are checked in GameScene via key objects
-  }
+  update(_delta: number): void {}
 
   private handlePointerDown(pointer: Phaser.Input.Pointer): void {
     const wx = pointer.worldX;
@@ -67,38 +56,21 @@ export class InputSystem {
 
     // If in missile select mode, fire at nearest silo
     if (this.missileSelectMode) {
-      const silo = this.findNearestActiveSilo(wx, wy, 60);
-      if (silo !== null) {
+      const silo = this.findNearestActiveSiloIndex(wx, wy, 60);
+      if (silo !== -1) {
         this.callbacks.onFireMissile(silo);
-        this.exitMissileSelectMode();
-      } else {
-        this.exitMissileSelectMode();
       }
+      this.exitMissileSelectMode();
       return;
     }
 
-    // Check for double-tap on a silo
-    const now = Date.now();
-    const distFromLastTap = Phaser.Math.Distance.Between(wx, wy, this.lastTapX, this.lastTapY);
-    const isDoubleTap = now - this.lastTapTime < this.DOUBLE_TAP_MS && distFromLastTap < 20;
-
-    this.lastTapTime = now;
-    this.lastTapX = wx;
-    this.lastTapY = wy;
-
-    if (isDoubleTap) {
-      // Double-tap on silo = fire missile
-      const siloIdx = this.findNearestActiveSiloIndex(wx, wy, this.SILO_TAP_RADIUS * 2);
-      if (siloIdx !== -1) {
-        this.callbacks.onFireMissile(siloIdx);
-        return;
-      }
-    }
-
-    // Single tap: check if near a silo
+    // Single tap near an active silo = fire missile immediately + lock for auto-bomb
     const siloIdx = this.findNearestActiveSiloIndex(wx, wy, this.SILO_TAP_RADIUS);
     if (siloIdx !== -1) {
       const silo = this.silos[siloIdx];
+      // Fire missile if we have any
+      this.callbacks.onFireMissile(siloIdx);
+      // Also lock the silo so aircraft approaches for bomb follow-up
       this.aircraft.lockSilo(silo.siloId, silo.x, silo.y);
       return;
     }
@@ -126,11 +98,6 @@ export class InputSystem {
       }
     });
     return best;
-  }
-
-  private findNearestActiveSilo(wx: number, wy: number, radius: number): number | null {
-    const idx = this.findNearestActiveSiloIndex(wx, wy, radius);
-    return idx === -1 ? null : idx;
   }
 
   destroy(): void {

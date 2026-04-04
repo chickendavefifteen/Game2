@@ -1,6 +1,7 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
 import { DIFFICULTIES, Difficulty } from '../config/BalanceConfig';
+import { sounds } from '../audio/SoundSystem';
 
 const DIFF_OPTS: { key: Difficulty; label: string; color: string; desc: string }[] = [
   { key: 'recruit',   label: 'RECRUIT',   color: '#44ff88', desc: 'Easy — long timers' },
@@ -138,6 +139,7 @@ export class MenuScene extends Phaser.Scene {
     startHit.on('pointerover',  () => drawStart(true));
     startHit.on('pointerout',   () => drawStart(false));
     startHit.on('pointerdown',  () => {
+      sounds.init(); sounds.playClick();
       this.registry.set('difficulty', this.selectedDiff);
       this.tweens.add({ targets: startHit, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
         onComplete: () => this.scene.start('GameScene') });
@@ -162,6 +164,7 @@ export class MenuScene extends Phaser.Scene {
     lbHit.on('pointerover',  () => drawLb(true));
     lbHit.on('pointerout',   () => drawLb(false));
     lbHit.on('pointerdown',  () => {
+      sounds.init(); sounds.playClick();
       this.tweens.add({ targets: lbHit, scaleX: 0.94, scaleY: 0.94, duration: 60, yoyo: true,
         onComplete: () => this.scene.start('LeaderboardScene') });
     });

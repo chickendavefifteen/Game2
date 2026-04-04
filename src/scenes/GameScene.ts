@@ -24,6 +24,7 @@ import { OilSlick }        from '../ui/OilSlick';
 import { ObjectPool }      from '../utils/ObjectPool';
 import { EventBus }        from '../utils/EventBus';
 import { getWave }         from '../config/LevelConfig';
+import { sounds }          from '../audio/SoundSystem';
 
 const MAX_BOMBS   = 16;
 const MAX_MISSILES = 8;
@@ -60,6 +61,8 @@ export class GameScene extends Phaser.Scene {
   private difficulty!: DifficultyConfig;
   private difficultyKey: Difficulty = 'sergeant';
   private waveClearOverlay: Phaser.GameObjects.Container | null = null;
+  private paused = false;
+  private pauseOverlay: Phaser.GameObjects.Container | null = null;
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -84,6 +87,11 @@ export class GameScene extends Phaser.Scene {
     if (this.input.keyboard) {
       this.spaceKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.SPACE);
     }
+
+    // Unlock AudioContext on first pointer interaction
+    this.input.once('pointerdown', () => sounds.init());
+
+    this.showFirstWaveTip();
   }
 
   // ── Background: full-gradient Hormuz strait map ─────────────────────────
@@ -480,6 +488,11 @@ export class GameScene extends Phaser.Scene {
   private bindEvents(): void {
     EventBus.on('siloLaunched', ({ siloId, targetX, targetY }) => {
       this.spawnEnemyMissile(siloId, targetX, targetY);
+      sounds.playMissileIncoming();
+    }, this);
+
+    EventBus.on('siloDestroyed', () => {
+      sounds.playSiloDestroyed();
     }, this);
 
     EventBus.on('cityHit', ({ cityId }) => {
@@ -488,6 +501,7 @@ export class GameScene extends Phaser.Scene {
         this.alertBanner.show(`⚠ ${city.cityName.toUpperCase()} HIT!`, 0xcc0000);
         this.cameras.main.shake(200, 0.012);
       }
+      sounds.playCityHit();
     }, this);
 
     EventBus.on('cityDestroyed', ({ cityId }) => {
@@ -497,12 +511,14 @@ export class GameScene extends Phaser.Scene {
         this.scoreSystem.loseLife();
         this.cameras.main.shake(300, 0.02);
       }
+      sounds.playExplosion('large');
       if (this.scoreSystem.isGameOver()) this.endGame(false);
     }, this);
 
     EventBus.on('shipSunk', () => {
       this.alertBanner.show('🚢 TANKER SUNK — OIL SPILL!', 0x884400);
       this.cameras.main.shake(150, 0.008);
+      sounds.playShipSunk();
     }, this);
 
     EventBus.on('reservesDepleted', () => { this.endGame(false); }, this);
@@ -512,6 +528,7 @@ export class GameScene extends Phaser.Scene {
       this.waveTransitionTimer = 4000;
       this.shipSpawn.stop();
       this.showWaveClearOverlay(waveNumber);
+      sounds.playWaveClear();
     }, this);
 
     EventBus.on('showAlert', ({ message, color }) => {
@@ -529,6 +546,8 @@ export class GameScene extends Phaser.Scene {
     if (!bomb) return;
     if (!this.aircraft.dropBomb(tx, ty)) return;
     bomb.launch(this.aircraft.x, this.aircraft.y, tx, ty, () => {});
+    sounds.playBombDrop();
+    EventBus.emit('shotFired', {});
   }
 
   private handleBombButton(): void {
@@ -549,6 +568,9 @@ export class GameScene extends Phaser.Scene {
     const pm = this.playerMissiles.find(m => !m.active);
     if (!pm) return;
     pm.launch(this.aircraft.x, this.aircraft.y, silo.x, silo.y, () => {});
+    sounds.playMissileFire();
+    EventBus.emit('shotFired', {});
+    this.missileCountText.setText(`×${this.aircraft.missiles}`);
   }
 
   private handleMissileButton(): void {
@@ -630,6 +652,131 @@ export class GameScene extends Phaser.Scene {
     for (const slick of this.oilSlicks) slick.update(delta);
 
     if (this.scoreSystem.isGameOver()) this.endGame(false);
+  }
+
+  private showFirstWaveTip(): void {
+    // Arrow pointing at first active silo
+    const silo = this.silos[0];
+    if (!silo) return;
+
+    const tipContainer = this.add.container(silo.x, silo.y - 36).setDepth(85);
+
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.72);
+    bg.fillRoundedRect(-62, -14, 124, 24, 6);
+    bg.fillStyle(0xffcc00, 0.9);
+    bg.fillTriangle(0, 10, -6, 0, 6, 0);
+    tipContainer.add(bg);
+
+    const label = this.add.text(0, -6, 'TAP SILO → MISSILE', {
+      fontSize: '8px', color: '#ffee44', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 2,
+    }).setOrigin(0.5);
+    tipContainer.add(label);
+
+    tipContainer.setAlpha(0);
+    this.tweens.add({ targets: tipContainer, alpha: 1, duration: 400, ease: 'Sine.easeOut' });
+    this.tweens.add({
+      targets: tipContainer, alpha: 0,
+      delay: 4500, duration: 600,
+      onComplete: () => tipContainer.destroy(),
+    });
+  }
+
+  togglePause(): void {
+    if (!this.gameActive && !this.paused) return;
+    this.paused = !this.paused;
+    sounds.playClick();
+
+    if (this.paused) {
+      this.physics.pause();
+      this.time.paused = true;
+      this.showPauseOverlay();
+    } else {
+      this.physics.resume();
+      this.time.paused = false;
+      if (this.pauseOverlay) {
+        this.pauseOverlay.destroy();
+        this.pauseOverlay = null;
+      }
+    }
+  }
+
+  private showPauseOverlay(): void {
+    const CX = GAME_WIDTH / 2;
+    const CY = GAME_HEIGHT / 2;
+    const container = this.add.container(CX, CY).setDepth(200);
+    this.pauseOverlay = container;
+
+    const shade = this.add.graphics();
+    shade.fillStyle(0x000000, 0.65);
+    shade.fillRect(-CX, -CY, GAME_WIDTH, GAME_HEIGHT);
+    container.add(shade);
+
+    const card = this.add.graphics();
+    card.fillStyle(0x060e1c, 0.97);
+    card.fillRoundedRect(-90, -70, 180, 140, 12);
+    card.lineStyle(2.5, 0x2255aa, 0.9);
+    card.strokeRoundedRect(-90, -70, 180, 140, 12);
+    container.add(card);
+
+    container.add(this.add.text(0, -52, '⏸  PAUSED', {
+      fontSize: '14px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5));
+
+    // Resume button
+    const resumeGfx = this.add.graphics();
+    const drawResume = (h: boolean) => {
+      resumeGfx.clear();
+      resumeGfx.fillStyle(h ? 0x1e4a1e : 0x122a12, 0.97);
+      resumeGfx.fillRoundedRect(-72, -18, 144, 32, 8);
+      resumeGfx.lineStyle(2, 0x44ff44, h ? 0.9 : 0.6);
+      resumeGfx.strokeRoundedRect(-72, -18, 144, 32, 8);
+    };
+    drawResume(false);
+    container.add(resumeGfx);
+    container.add(this.add.text(0, -2, '▶  RESUME', {
+      fontSize: '10px', color: '#55ff55', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5));
+
+    const resumeHit = this.add.rectangle(0, -2, 144, 32, 0, 0).setInteractive();
+    resumeHit.on('pointerover', () => drawResume(true));
+    resumeHit.on('pointerout',  () => drawResume(false));
+    resumeHit.on('pointerdown', () => this.togglePause());
+    container.add(resumeHit);
+
+    // Quit button
+    const quitGfx = this.add.graphics();
+    const drawQuit = (h: boolean) => {
+      quitGfx.clear();
+      quitGfx.fillStyle(h ? 0x2a0e0e : 0x160808, 0.97);
+      quitGfx.fillRoundedRect(-72, 24, 144, 28, 8);
+      quitGfx.lineStyle(2, 0xcc2222, h ? 0.9 : 0.5);
+      quitGfx.strokeRoundedRect(-72, 24, 144, 28, 8);
+    };
+    drawQuit(false);
+    container.add(quitGfx);
+    container.add(this.add.text(0, 38, '◀  QUIT TO MENU', {
+      fontSize: '8px', color: '#ff6666', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5));
+
+    const quitHit = this.add.rectangle(0, 38, 144, 28, 0, 0).setInteractive();
+    quitHit.on('pointerover', () => drawQuit(true));
+    quitHit.on('pointerout',  () => drawQuit(false));
+    quitHit.on('pointerdown', () => {
+      this.paused = false;
+      this.physics.resume();
+      this.time.paused = false;
+      this.scene.stop('HUDScene');
+      this.scene.start('MenuScene');
+    });
+    container.add(quitHit);
+
+    container.setAlpha(0);
+    this.tweens.add({ targets: container, alpha: 1, duration: 200 });
   }
 
   private showWaveClearOverlay(waveNumber: number): void {
@@ -752,12 +899,15 @@ export class GameScene extends Phaser.Scene {
 
   shutdown(): void {
     EventBus.off('siloLaunched',    undefined, this);
+    EventBus.off('siloDestroyed',   undefined, this);
     EventBus.off('cityHit',         undefined, this);
     EventBus.off('cityDestroyed',   undefined, this);
     EventBus.off('shipSunk',        undefined, this);
     EventBus.off('reservesDepleted',undefined, this);
     EventBus.off('waveComplete',    undefined, this);
     EventBus.off('showAlert',       undefined, this);
+    if (this.time) this.time.paused = false;
+    if (this.physics?.world) this.physics.resume();
     this.inputSystem.destroy();
   }
 }

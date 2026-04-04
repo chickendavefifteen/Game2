@@ -2,6 +2,7 @@ import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
 import { BALANCE, getRank, DIFFICULTIES, Difficulty } from '../config/BalanceConfig';
 import { EventBus } from '../utils/EventBus';
+import { sounds } from '../audio/SoundSystem';
 
 export class HUDScene extends Phaser.Scene {
   private scoreText!:     Phaser.GameObjects.Text;
@@ -80,6 +81,10 @@ export class HUDScene extends Phaser.Scene {
       stroke: '#000', strokeThickness: 2,
     }).setOrigin(1, 0).setDepth(100);
 
+    // ── Pause + Mute buttons ─────────────────────────────────────────────
+    this.buildPauseButton();
+    this.buildMuteButton();
+
     // ── RESERVES PANEL (just above buttons) ──────────────────────────────
     const RY = this.resY;
     const RH = HUDScene.RES_H;
@@ -142,6 +147,61 @@ export class HUDScene extends Phaser.Scene {
       this.waveText.setText(`${waveNumber + 1}`);
       this.tweens.add({ targets: this.waveText, scaleX: 1.5, scaleY: 1.5, duration: 180, yoyo: true });
     }, this);
+  }
+
+  private buildPauseButton(): void {
+    // Sits in top-bar, centered — small ⏸ tap target
+    const CX = GAME_WIDTH / 2;
+    const gfx = this.add.graphics().setDepth(102);
+    const draw = (hover: boolean) => {
+      gfx.clear();
+      gfx.fillStyle(0x1a2d44, hover ? 0.7 : 0.45);
+      gfx.fillRoundedRect(CX - 15, 36, 30, 10, 4);
+    };
+    draw(false);
+    this.add.text(CX, 41, '⏸', {
+      fontSize: '8px', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(103);
+    const hit = this.add.rectangle(CX, 41, 36, 14, 0, 0).setInteractive().setDepth(104);
+    hit.on('pointerover',  () => draw(true));
+    hit.on('pointerout',   () => draw(false));
+    hit.on('pointerdown',  (ptr: Phaser.Input.Pointer) => {
+      ptr.event.stopPropagation();
+      const game = this.scene.get('GameScene') as any;
+      if (game?.togglePause) game.togglePause();
+    });
+  }
+
+  private buildMuteButton(): void {
+    // Bottom-left of the button zone
+    const BX = GAME_WIDTH / 2 - 14;
+    const BY = GAME_HEIGHT - HUDScene.BTN_H / 2;
+    let muteIcon: Phaser.GameObjects.Text;
+
+    const gfx = this.add.graphics().setDepth(102);
+    const draw = (muted: boolean, hover: boolean) => {
+      gfx.clear();
+      gfx.fillStyle(muted ? 0x330000 : 0x0a1828, hover ? 0.9 : 0.7);
+      gfx.fillRoundedRect(BX - 14, BY - 10, 28, 20, 5);
+      gfx.lineStyle(1, muted ? 0xaa2222 : 0x224466, 0.7);
+      gfx.strokeRoundedRect(BX - 14, BY - 10, 28, 20, 5);
+    };
+    draw(sounds.muted, false);
+
+    muteIcon = this.add.text(BX, BY, sounds.muted ? '🔇' : '🔊', {
+      fontSize: '10px', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(103);
+
+    const hit = this.add.rectangle(BX, BY, 28, 20, 0, 0).setInteractive().setDepth(104);
+    hit.on('pointerover',  () => draw(sounds.muted, true));
+    hit.on('pointerout',   () => draw(sounds.muted, false));
+    hit.on('pointerdown',  (ptr: Phaser.Input.Pointer) => {
+      ptr.event.stopPropagation();
+      sounds.init();
+      const nowMuted = sounds.toggleMute();
+      muteIcon.setText(nowMuted ? '🔇' : '🔊');
+      draw(nowMuted, false);
+    });
   }
 
   private drawReservesBar(ratio: number): void {
