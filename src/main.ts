@@ -4,7 +4,8 @@ import { PreloadScene }  from './scenes/PreloadScene';
 import { MenuScene }     from './scenes/MenuScene';
 import { GameScene }     from './scenes/GameScene';
 import { HUDScene }      from './scenes/HUDScene';
-import { GameOverScene } from './scenes/GameOverScene';
+import { GameOverScene }    from './scenes/GameOverScene';
+import { LeaderboardScene } from './scenes/LeaderboardScene';
 import { GAME_WIDTH, GAME_HEIGHT } from './config/GameConfig';
 
 const config: Phaser.Types.Core.GameConfig = {
@@ -22,7 +23,7 @@ const config: Phaser.Types.Core.GameConfig = {
     default: 'arcade',
     arcade: { debug: false, gravity: { x: 0, y: 0 } },
   },
-  scene: [BootScene, PreloadScene, MenuScene, GameScene, HUDScene, GameOverScene],
+  scene: [BootScene, PreloadScene, MenuScene, GameScene, HUDScene, GameOverScene, LeaderboardScene],
 };
 
 new Phaser.Game(config);

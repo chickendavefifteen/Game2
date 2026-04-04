@@ -1,31 +1,39 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH, GAME_HEIGHT } from '../config/GameConfig';
-import { BALANCE } from '../config/BalanceConfig';
+import { BALANCE, getRank, DIFFICULTIES, Difficulty } from '../config/BalanceConfig';
 import { EventBus } from '../utils/EventBus';
 
 export class HUDScene extends Phaser.Scene {
-  private scoreText!:    Phaser.GameObjects.Text;
-  private waveText!:     Phaser.GameObjects.Text;
-  private livesRow!:     Phaser.GameObjects.Text;
-  private oilDelivered!: Phaser.GameObjects.Text;
-  private oilLostText!:  Phaser.GameObjects.Text;
-  private reservesBar!:  Phaser.GameObjects.Graphics;
-  private reservesLabel!:Phaser.GameObjects.Text;
+  private scoreText!:     Phaser.GameObjects.Text;
+  private waveText!:      Phaser.GameObjects.Text;
+  private livesRow!:      Phaser.GameObjects.Text;
+  private rankText!:      Phaser.GameObjects.Text;
+  private oilDelivered!:  Phaser.GameObjects.Text;
+  private oilLostText!:   Phaser.GameObjects.Text;
+  private reservesBar!:   Phaser.GameObjects.Graphics;
+  private reservesLabel!: Phaser.GameObjects.Text;
   private reservesMax = BALANCE.oil.startingReserves;
+
+  private difficultyKey: Difficulty = 'sergeant';
 
   constructor() { super({ key: 'HUDScene' }); }
 
   // Layout constants — must match GameScene button positions
-  private static readonly TOP_H    = 48;  // top bar height
-  private static readonly BTN_H    = 52;  // weapon button zone height
-  private static readonly RES_H    = 24;  // reserves bar zone height
-  // reserves bar sits at: GAME_HEIGHT - BTN_H - RES_H
+  private static readonly TOP_H = 48;
+  private static readonly BTN_H = 52;
+  private static readonly RES_H = 24;
   private get resY(): number { return GAME_HEIGHT - HUDScene.BTN_H - HUDScene.RES_H; }
 
-  private livesCount   = 3;
+  private livesCount    = 3;
   private reservesRatio = 1.0;
 
+  init(data: { difficultyKey?: Difficulty }): void {
+    this.difficultyKey = data?.difficultyKey ?? 'sergeant';
+  }
+
   create(): void {
+    const diffConfig = DIFFICULTIES[this.difficultyKey] ?? DIFFICULTIES.sergeant;
+
     // ── TOP BAR (0 → TOP_H) ──────────────────────────────────────────────
     const TOP = HUDScene.TOP_H;
     const topGfx = this.add.graphics().setDepth(98);
@@ -36,36 +44,45 @@ export class HUDScene extends Phaser.Scene {
     topGfx.fillStyle(0x3388ff, 0.5);
     topGfx.fillRect(0, 0, 3, TOP);
 
-    // Score — left
-    this.add.text(10, 5, 'SCORE', {
-      fontSize: '7px', color: '#3d6080', fontFamily: 'monospace',
+    // ── Score (left column) ──────────────────────────────────────────────
+    this.add.text(10, 4, 'SCORE', {
+      fontSize: '6px', color: '#3d6080', fontFamily: 'monospace',
     }).setDepth(100);
-    this.scoreText = this.add.text(10, 16, '0', {
+    this.scoreText = this.add.text(10, 12, '0', {
       fontSize: '14px', color: '#ffee55', fontFamily: 'monospace',
       stroke: '#110a00', strokeThickness: 3,
     }).setDepth(100);
+    // Rank title under score
+    this.rankText = this.add.text(10, 29, 'CONSCRIPT', {
+      fontSize: '6px', color: '#888888', fontFamily: 'monospace',
+    }).setDepth(100);
 
-    // Wave — centre
-    this.add.text(GAME_WIDTH / 2, 5, 'WAVE', {
-      fontSize: '7px', color: '#3d6080', fontFamily: 'monospace',
+    // ── Wave (centre) ────────────────────────────────────────────────────
+    this.add.text(GAME_WIDTH / 2, 4, 'WAVE', {
+      fontSize: '6px', color: '#3d6080', fontFamily: 'monospace',
     }).setOrigin(0.5, 0).setDepth(100);
-    this.waveText = this.add.text(GAME_WIDTH / 2, 15, '1', {
+    this.waveText = this.add.text(GAME_WIDTH / 2, 13, '1', {
       fontSize: '18px', color: '#44ccff', fontFamily: 'monospace',
       stroke: '#001828', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(100);
 
-    // Lives — right
-    this.add.text(GAME_WIDTH - 10, 5, 'LIVES', {
-      fontSize: '7px', color: '#3d6080', fontFamily: 'monospace',
+    // ── Lives + difficulty (right column) ────────────────────────────────
+    this.add.text(GAME_WIDTH - 10, 4, 'LIVES', {
+      fontSize: '6px', color: '#3d6080', fontFamily: 'monospace',
     }).setOrigin(1, 0).setDepth(100);
-    this.livesRow = this.add.text(GAME_WIDTH - 10, 15, '♥ ♥ ♥', {
-      fontSize: '14px', color: '#ff2244', fontFamily: 'monospace',
+    this.livesRow = this.add.text(GAME_WIDTH - 10, 13, '♥ ♥ ♥', {
+      fontSize: '13px', color: '#ff2244', fontFamily: 'monospace',
       stroke: '#200010', strokeThickness: 3,
+    }).setOrigin(1, 0).setDepth(100);
+    // Difficulty badge under lives
+    this.add.text(GAME_WIDTH - 10, 29, diffConfig.label, {
+      fontSize: '6px', color: diffConfig.color, fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 2,
     }).setOrigin(1, 0).setDepth(100);
 
     // ── RESERVES PANEL (just above buttons) ──────────────────────────────
-    const RY  = this.resY;
-    const RH  = HUDScene.RES_H;
+    const RY = this.resY;
+    const RH = HUDScene.RES_H;
     const resGfx = this.add.graphics().setDepth(98);
     resGfx.fillGradientStyle(0x030710, 0x030710, 0x05101a, 0x05101a, 0.95);
     resGfx.fillRect(0, RY, GAME_WIDTH, RH);
@@ -80,7 +97,7 @@ export class HUDScene extends Phaser.Scene {
       stroke: '#110800', strokeThickness: 2,
     }).setOrigin(1, 0).setDepth(100);
 
-    // Oil stats (compact, same row right of label — delivered | spilled)
+    // Oil stats row
     this.oilDelivered = this.add.text(10, RY + 14, '🛢 0.0', {
       fontSize: '7px', color: '#33cc88', fontFamily: 'monospace',
     }).setDepth(100);
@@ -102,6 +119,9 @@ export class HUDScene extends Phaser.Scene {
     // ── EVENT LISTENERS ──────────────────────────────────────────────────
     EventBus.on('scoreChanged', ({ score }) => {
       this.scoreText.setText(score.toLocaleString());
+      const rank = getRank(score);
+      this.rankText.setText(rank.title.toUpperCase());
+      this.rankText.setColor(rank.color);
     }, this);
 
     EventBus.on('livesChanged', ({ lives }) => {
@@ -125,9 +145,9 @@ export class HUDScene extends Phaser.Scene {
   }
 
   private drawReservesBar(ratio: number): void {
-    const RY  = this.resY;
-    const BX  = 10, BW = GAME_WIDTH - 20, BH = 7, BY2 = RY + 13;
-    const r   = 3;
+    const RY = this.resY;
+    const BX = 10, BW = GAME_WIDTH - 20, BH = 7, BY2 = RY + 13;
+    const r  = 3;
     this.reservesBar.clear();
 
     const fillW = Math.max(0, Math.round(BW * ratio));
@@ -161,9 +181,9 @@ export class HUDScene extends Phaser.Scene {
   }
 
   shutdown(): void {
-    EventBus.off('scoreChanged',  undefined, this);
-    EventBus.off('livesChanged',  undefined, this);
-    EventBus.off('oilChanged',    undefined, this);
-    EventBus.off('waveComplete',  undefined, this);
+    EventBus.off('scoreChanged', undefined, this);
+    EventBus.off('livesChanged', undefined, this);
+    EventBus.off('oilChanged',   undefined, this);
+    EventBus.off('waveComplete', undefined, this);
   }
 }

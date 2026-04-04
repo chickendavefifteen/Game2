@@ -5,7 +5,7 @@ import {
   northCoastY, southCoastY,
   WATER_Y_MIN, WATER_Y_MAX,
 } from '../config/GameConfig';
-import { BALANCE } from '../config/BalanceConfig';
+import { BALANCE, DIFFICULTIES, Difficulty, DifficultyConfig } from '../config/BalanceConfig';
 import { Aircraft }        from '../entities/Aircraft';
 import { Bomb }            from '../entities/Bomb';
 import { AircraftMissile } from '../entities/AircraftMissile';
@@ -57,6 +57,9 @@ export class GameScene extends Phaser.Scene {
   private gameActive   = false;
   private waveTransitionTimer = 0;
   private inWaveTransition    = false;
+  private difficulty!: DifficultyConfig;
+  private difficultyKey: Difficulty = 'sergeant';
+  private waveClearOverlay: Phaser.GameObjects.Container | null = null;
 
   constructor() { super({ key: 'GameScene' }); }
 
@@ -64,13 +67,17 @@ export class GameScene extends Phaser.Scene {
     this.gameActive = true;
     this.waveNumber = 1;
 
+    // Read difficulty from registry
+    this.difficultyKey = (this.registry.get('difficulty') as Difficulty) ?? 'sergeant';
+    this.difficulty = DIFFICULTIES[this.difficultyKey];
+
     this.buildBackground();
     this.createEntities();
     this.createSystems();
     this.createHUD();
     this.bindEvents();
 
-    this.scene.launch('HUDScene');
+    this.scene.launch('HUDScene', { difficultyKey: this.difficultyKey });
     this.waveSystem.startWave(1);
     this.shipSpawn.start();
 
@@ -324,6 +331,8 @@ export class GameScene extends Phaser.Scene {
     }
 
     this.aircraft = new Aircraft(this, AIRCRAFT_START.x, AIRCRAFT_START.y);
+    // Apply difficulty starting ammo (set after construction — aircraft defaults are overridden)
+    // We'll apply these in createSystems() once difficulty is known
 
     this.explosionPool = new ObjectPool<Explosion>(
       () => new Explosion(this),
@@ -346,8 +355,12 @@ export class GameScene extends Phaser.Scene {
   }
 
   private createSystems(): void {
-    this.scoreSystem = new ScoreSystem();
-    this.waveSystem  = new WaveSystem(this, this.silos, this.cities, this.ships);
+    // Apply difficulty ammo loadout
+    this.aircraft.bombs   = this.difficulty.startingBombs;
+    this.aircraft.missiles = this.difficulty.startingMissiles;
+
+    this.scoreSystem = new ScoreSystem(this.difficulty);
+    this.waveSystem  = new WaveSystem(this, this.silos, this.cities, this.ships, this.difficulty.timerMultiplier);
     this.shipSpawn   = new ShipSpawnSystem(this, this.ships, BALANCE.ships.spawnIntervalSeconds);
 
     this.collisions = new CollisionSystem(
@@ -495,10 +508,10 @@ export class GameScene extends Phaser.Scene {
     EventBus.on('reservesDepleted', () => { this.endGame(false); }, this);
 
     EventBus.on('waveComplete', ({ waveNumber }) => {
-      this.alertBanner.show(`✓ WAVE ${waveNumber} CLEAR`, 0x225522, 2500);
       this.inWaveTransition = true;
-      this.waveTransitionTimer = 3000;
+      this.waveTransitionTimer = 4000;
       this.shipSpawn.stop();
+      this.showWaveClearOverlay(waveNumber);
     }, this);
 
     EventBus.on('showAlert', ({ message, color }) => {
@@ -566,9 +579,22 @@ export class GameScene extends Phaser.Scene {
       this.waveTransitionTimer -= delta;
       if (this.waveTransitionTimer <= 0) {
         this.inWaveTransition = false;
+        if (this.waveClearOverlay) {
+          this.waveClearOverlay.destroy();
+          this.waveClearOverlay = null;
+        }
+        // Check victory (all 10 waves done)
+        if (this.waveNumber >= 10) {
+          this.endGame(true);
+          return;
+        }
         this.waveNumber++;
-        this.aircraft.bombs   = Math.min(this.aircraft.bombs   + 6, BALANCE.aircraft.startingBombs);
-        this.aircraft.missiles = Math.min(this.aircraft.missiles + 2, BALANCE.aircraft.startingMissiles);
+        const bombRefill    = 6;
+        const missileRefill = 2;
+        this.aircraft.bombs    = Math.min(this.aircraft.bombs    + bombRefill,    this.difficulty.startingBombs);
+        this.aircraft.missiles = Math.min(this.aircraft.missiles + missileRefill, this.difficulty.startingMissiles);
+        this.bombCountText.setText(`×${this.aircraft.bombs}`);
+        this.missileCountText.setText(`×${this.aircraft.missiles}`);
         const newWave = getWave(this.waveNumber);
         this.silos.forEach(s => { s.maxHp = newWave.siloHitPoints; });
         this.waveSystem.startWave(this.waveNumber);
@@ -606,11 +632,114 @@ export class GameScene extends Phaser.Scene {
     if (this.scoreSystem.isGameOver()) this.endGame(false);
   }
 
+  private showWaveClearOverlay(waveNumber: number): void {
+    const isLast  = waveNumber >= 10;
+    const perfect = this.scoreSystem.getEfficiency() >= 80;
+
+    // Award bonus
+    this.scoreSystem.addWaveClearBonus(perfect);
+
+    const CX = GAME_WIDTH / 2;
+    const CY = GAME_HEIGHT / 2 - 30;
+    const W  = GAME_WIDTH - 32;
+
+    const container = this.add.container(CX, CY).setDepth(90);
+    this.waveClearOverlay = container;
+
+    // Dark card
+    const bg = this.add.graphics();
+    bg.fillStyle(0x000000, 0.78);
+    bg.fillRoundedRect(-W / 2, -70, W, 140, 14);
+    bg.lineStyle(2.5, isLast ? 0xffcc00 : 0x22aa44, 0.9);
+    bg.strokeRoundedRect(-W / 2, -70, W, 140, 14);
+    // top gloss
+    bg.fillStyle(0xffffff, 0.06);
+    bg.fillRoundedRect(-W / 2 + 4, -68, W - 8, 50, 12);
+    container.add(bg);
+
+    // Header
+    const header = isLast ? '★ MISSION COMPLETE ★' : `✓ WAVE ${waveNumber} CLEAR`;
+    const headerColor = isLast ? '#ffcc00' : '#44ff88';
+    const hdrText = this.add.text(0, -54, header, {
+      fontSize: isLast ? '13px' : '14px', color: headerColor,
+      fontFamily: 'monospace', stroke: '#000', strokeThickness: 4,
+    }).setOrigin(0.5);
+    container.add(hdrText);
+
+    // Stars (1–3 based on wave number milestone and efficiency)
+    const stars = perfect ? 3 : waveNumber % 3 === 0 ? 2 : 1;
+    const starText = '★'.repeat(stars) + '☆'.repeat(3 - stars);
+    const starColors = ['#555533', '#555533', '#555533'];
+    const litColor   = '#ffcc00';
+    // render as plain text with colour trick via two overlapping texts
+    this.add.text(0, -34, '★★★', {
+      fontSize: '20px', color: '#222211', fontFamily: 'monospace',
+    }).setOrigin(0.5);   // dim backing — not added to container, just direct (container.add below)
+    const starBg = this.add.text(0, -34, '★★★', {
+      fontSize: '20px', color: '#222211', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    const starFg = this.add.text(0, -34, starText.replace(/★/g, '★').replace(/☆/g, ''), {
+      fontSize: '20px', color: litColor, fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    void starColors;
+    container.add([starBg, starFg]);
+
+    // Bonus line
+    const bonusAmt = perfect
+      ? BALANCE.scoring.waveClearBonus + BALANCE.scoring.perfectWaveBonus
+      : BALANCE.scoring.waveClearBonus;
+    const bonusLabel = perfect ? `+${bonusAmt.toLocaleString()}  PERFECT CLEAR!` : `+${bonusAmt.toLocaleString()}  WAVE BONUS`;
+    const bonusText = this.add.text(0, -8, bonusLabel, {
+      fontSize: '9px', color: perfect ? '#ffee44' : '#88ffcc',
+      fontFamily: 'monospace', stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5);
+    container.add(bonusText);
+
+    // Ammo refill (only if not last wave)
+    if (!isLast) {
+      const refillText = this.add.text(0, 10, `+6 💣   +2 🚀   REFILL`, {
+        fontSize: '9px', color: '#88aadd', fontFamily: 'monospace',
+        stroke: '#000', strokeThickness: 2,
+      }).setOrigin(0.5);
+      container.add(refillText);
+    }
+
+    // Difficulty & multiplier badge
+    const diffLabel = this.difficultyKey.toUpperCase();
+    const multLabel = `×${this.difficulty.scoreMultiplier.toFixed(1)} MULTIPLIER`;
+    const badgeText = this.add.text(0, 30, `${diffLabel}  ${multLabel}`, {
+      fontSize: '7px', color: '#556677', fontFamily: 'monospace',
+    }).setOrigin(0.5);
+    container.add(badgeText);
+
+    // Next wave label
+    if (!isLast) {
+      const nextText = this.add.text(0, 50, `WAVE ${waveNumber + 1} INCOMING…`, {
+        fontSize: '8px', color: '#445566', fontFamily: 'monospace',
+      }).setOrigin(0.5);
+      container.add(nextText);
+      this.tweens.add({ targets: nextText, alpha: 0.3, duration: 600, yoyo: true, repeat: -1, ease: 'Sine.easeInOut' });
+    }
+
+    // Slide-in
+    container.setAlpha(0).setScale(0.88);
+    this.tweens.add({ targets: container, alpha: 1, scaleX: 1, scaleY: 1, duration: 300, ease: 'Back.easeOut' });
+  }
+
   private endGame(victory: boolean): void {
     if (!this.gameActive) return;
     this.gameActive = false;
     this.shipSpawn.stop();
-    const report = { ...this.scoreSystem.getReport(), wave: this.waveNumber, victory };
+    if (this.waveClearOverlay) {
+      this.waveClearOverlay.destroy();
+      this.waveClearOverlay = null;
+    }
+    const report = {
+      ...this.scoreSystem.getReport(),
+      wave: this.waveNumber,
+      victory,
+      difficulty: this.difficultyKey,
+    };
     EventBus.emit('gameOver', {
       score: report.score, oilTransported: report.oilTransported,
       oilLost: report.oilLost, gulfReserves: report.gulfReserves,

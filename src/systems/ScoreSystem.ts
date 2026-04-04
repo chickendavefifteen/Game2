@@ -1,9 +1,9 @@
-import { BALANCE } from '../config/BalanceConfig';
+import { BALANCE, DifficultyConfig, DIFFICULTIES } from '../config/BalanceConfig';
 import { EventBus } from '../utils/EventBus';
 
 export class ScoreSystem {
   score: number = 0;
-  lives: number = BALANCE.lives;
+  lives: number;
   oilTransported: number = 0;
   oilLost: number = 0;
   gulfReserves: number = BALANCE.oil.startingReserves;
@@ -11,10 +11,24 @@ export class ScoreSystem {
   shipsProtected: number = 0;
   shipsSunk: number = 0;
 
-  constructor() {
+  // Accuracy tracking
+  shotsFired: number = 0;   // bombs + missiles fired
+  shotsHit: number = 0;     // bombs/missiles that hit a silo
+
+  private difficulty: DifficultyConfig;
+
+  constructor(difficulty: DifficultyConfig = DIFFICULTIES.sergeant) {
+    this.difficulty = difficulty;
+    this.lives = difficulty.startingBombs !== undefined ? BALANCE.lives : BALANCE.lives;
+
     EventBus.on('siloDestroyed', () => {
       this.addScore(BALANCE.silo.scoreOnDestroy);
       this.silosDestroyed++;
+      this.shotsHit++;
+    });
+
+    EventBus.on('shotFired', () => {
+      this.shotsFired++;
     });
 
     EventBus.on('shipSafe', ({ cargoBarrels }) => {
@@ -44,7 +58,7 @@ export class ScoreSystem {
   }
 
   private addScore(amount: number): void {
-    this.score += amount;
+    this.score += Math.round(amount * this.difficulty.scoreMultiplier);
     EventBus.emit('scoreChanged', { score: this.score });
   }
 
@@ -56,6 +70,13 @@ export class ScoreSystem {
     });
   }
 
+  addWaveClearBonus(perfect: boolean): void {
+    const bonus = perfect
+      ? BALANCE.scoring.waveClearBonus + BALANCE.scoring.perfectWaveBonus
+      : BALANCE.scoring.waveClearBonus;
+    this.addScore(bonus);
+  }
+
   loseLife(): void {
     this.lives = Math.max(0, this.lives - 1);
     EventBus.emit('livesChanged', { lives: this.lives });
@@ -63,6 +84,11 @@ export class ScoreSystem {
 
   isGameOver(): boolean {
     return this.lives <= 0 || this.gulfReserves <= 0;
+  }
+
+  getEfficiency(): number {
+    if (this.shotsFired === 0) return 100;
+    return Math.round((this.shotsHit / this.shotsFired) * 100);
   }
 
   reset(): void {
@@ -74,6 +100,8 @@ export class ScoreSystem {
     this.silosDestroyed = 0;
     this.shipsProtected = 0;
     this.shipsSunk = 0;
+    this.shotsFired = 0;
+    this.shotsHit = 0;
     EventBus.emit('scoreChanged', { score: 0 });
     EventBus.emit('livesChanged', { lives: this.lives });
     EventBus.emit('oilChanged', {
@@ -92,6 +120,7 @@ export class ScoreSystem {
       silosDestroyed: this.silosDestroyed,
       shipsProtected: this.shipsProtected,
       shipsSunk: this.shipsSunk,
+      efficiency: this.getEfficiency(),
     };
   }
 }

@@ -17,6 +17,7 @@ export type GameEvents = {
   'showAlert': { message: string; color?: number };
   'bombDropped': {};
   'missileFireed': {};
+  'shotFired': {};
 };
 
 class TypedEventBus extends Phaser.Events.EventEmitter {

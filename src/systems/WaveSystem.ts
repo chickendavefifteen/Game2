@@ -13,6 +13,7 @@ export class WaveSystem {
   private silos: Silo[];
   private cities: City[];
   private ships: Ship[];
+  private timerMultiplier: number;
 
   private activeSiloCount: number = 0;
   private silosRemainingToActivate: number[] = [];
@@ -21,11 +22,12 @@ export class WaveSystem {
 
   private waveComplete: boolean = false;
 
-  constructor(scene: Phaser.Scene, silos: Silo[], cities: City[], ships: Ship[]) {
+  constructor(scene: Phaser.Scene, silos: Silo[], cities: City[], ships: Ship[], timerMultiplier = 1.0) {
     this.scene = scene;
     this.silos = silos;
     this.cities = cities;
     this.ships = ships;
+    this.timerMultiplier = timerMultiplier;
     this.waveConfig = getWave(1);
 
     EventBus.on('siloDestroyed', () => {
@@ -82,8 +84,8 @@ export class WaveSystem {
     }
 
     const timer = Phaser.Math.Between(
-      this.waveConfig.siloTimerMin * 1000,
-      this.waveConfig.siloTimerMax * 1000
+      Math.round(this.waveConfig.siloTimerMin * this.timerMultiplier) * 1000,
+      Math.round(this.waveConfig.siloTimerMax * this.timerMultiplier) * 1000
     ) / 1000;
 
     // Pick a target: random ship or random city
