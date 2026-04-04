@@ -370,91 +370,94 @@ export class GameScene extends Phaser.Scene {
   private createHUD(): void {
     this.alertBanner = new AlertBanner(this);
 
-    const BY  = GAME_HEIGHT - 28;  // button centre Y
-    const BH  = 40;                 // button height (bigger, thumb-friendly)
-    const BW  = 122;                // button width
+    // These must match HUDScene layout constants
+    const BTN_H = 52;
+    const RES_H = 24;
+    const BTN_TOP = GAME_HEIGHT - BTN_H;      // y where button zone starts (428)
+    const BY      = BTN_TOP + BTN_H / 2;      // button centre Y (454)
+    const BW      = 128;
+
+    // Dark button panel background
+    const panelGfx = this.add.graphics().setDepth(59).setScrollFactor(0);
+    panelGfx.fillGradientStyle(0x040810, 0x040810, 0x080c18, 0x080c18, 0.97);
+    panelGfx.fillRect(0, BTN_TOP, GAME_WIDTH, BTN_H);
+    panelGfx.fillStyle(0x1a2d44, 0.7);
+    panelGfx.fillRect(0, BTN_TOP, GAME_WIDTH, 1);
+
     const gfx = this.add.graphics().setDepth(61).setScrollFactor(0);
 
-    // Helper: draw a rounded-rect button panel with gradient-look layering
-    const drawBtn = (bx: number, by: number, bw: number, bh: number, baseColor: number, accentColor: number) => {
-      const r = 8;
-      // outer glow
-      gfx.fillStyle(accentColor, 0.25);
-      gfx.fillRoundedRect(bx - 2, by - BH / 2 - 2, bw + 4, bh + 4, r + 2);
-      // dark base
+    const drawBtn = (bx: number, baseColor: number, accentColor: number) => {
+      const r = 9;
+      gfx.fillStyle(accentColor, 0.22);
+      gfx.fillRoundedRect(bx - 2, BTN_TOP + 2, BW + 4, BTN_H - 4, r + 2);
       gfx.fillStyle(baseColor, 0.97);
-      gfx.fillRoundedRect(bx, by - BH / 2, bw, bh, r);
-      // top highlight strip
-      gfx.fillStyle(0xffffff, 0.08);
-      gfx.fillRoundedRect(bx + 2, by - BH / 2 + 2, bw - 4, bh / 2, r);
-      // accent border
+      gfx.fillRoundedRect(bx, BTN_TOP + 4, BW, BTN_H - 8, r);
+      gfx.fillStyle(0xffffff, 0.1);
+      gfx.fillRoundedRect(bx + 2, BTN_TOP + 5, BW - 4, (BTN_H - 8) / 2, r);
       gfx.lineStyle(2, accentColor, 0.9);
-      gfx.strokeRoundedRect(bx, by - BH / 2, bw, bh, r);
+      gfx.strokeRoundedRect(bx, BTN_TOP + 4, BW, BTN_H - 8, r);
     };
 
-    // ── BOMB button — bottom left ──────────────────────────────────────────
-    const bx1 = 3;
-    drawBtn(bx1, BY, BW, BH, 0x0d1f3a, 0x3388cc);
-    const bombHitArea = this.add.rectangle(bx1 + BW / 2, BY, BW, BH, 0, 0)
+    // ── BOMB button — left ────────────────────────────────────────────────
+    const bx1 = 4;
+    drawBtn(bx1, 0x0b1e38, 0x2277cc);
+    const bombHit = this.add.rectangle(bx1 + BW / 2, BY, BW, BTN_H - 10, 0, 0)
       .setDepth(60).setScrollFactor(0).setInteractive();
 
-    this.add.text(bx1 + 14, BY - 8, '💣', {
-      fontSize: '13px', fontFamily: 'monospace',
+    this.add.text(bx1 + 12, BY - 2, '💣', {
+      fontSize: '16px', fontFamily: 'monospace',
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.add.text(bx1 + 32, BY - 9, 'BOMB', {
-      fontSize: '9px', color: '#aaddff', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 3,
+    this.add.text(bx1 + 36, BY - 9, 'BOMB', {
+      fontSize: '11px', color: '#88ccff', fontFamily: 'monospace',
+      stroke: '#000816', strokeThickness: 3,
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.bombCountText = this.add.text(bx1 + 32, BY + 8, `×${this.aircraft?.bombs ?? BALANCE.aircraft.startingBombs}`, {
-      fontSize: '7px', color: '#ffdd88', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 2,
+    this.bombCountText = this.add.text(bx1 + 36, BY + 9, `×${this.aircraft?.bombs ?? BALANCE.aircraft.startingBombs}`, {
+      fontSize: '9px', color: '#ffdd66', fontFamily: 'monospace',
+      stroke: '#100800', strokeThickness: 2,
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    bombHitArea.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+    bombHit.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       ptr.event.stopPropagation();
       this.handleBombButton();
       this.bombCountText.setText(`×${this.aircraft.bombs}`);
-      this.tweens.add({ targets: bombHitArea, scaleX: 0.93, scaleY: 0.93, duration: 60, yoyo: true });
+      this.tweens.add({ targets: bombHit, scaleX: 0.92, scaleY: 0.92, duration: 55, yoyo: true });
     });
 
-    // ── MISSILE button — bottom right ─────────────────────────────────────
-    const bx2 = GAME_WIDTH - 3 - BW;
-    drawBtn(bx2, BY, BW, BH, 0x1a0d38, 0x9933cc);
-    const missileHitArea = this.add.rectangle(bx2 + BW / 2, BY, BW, BH, 0, 0)
+    // ── MISSILE button — right ────────────────────────────────────────────
+    const bx2 = GAME_WIDTH - 4 - BW;
+    drawBtn(bx2, 0x180d38, 0x8822cc);
+    const missileHit = this.add.rectangle(bx2 + BW / 2, BY, BW, BTN_H - 10, 0, 0)
       .setDepth(60).setScrollFactor(0).setInteractive();
 
-    this.add.text(bx2 + 14, BY - 8, '🚀', {
-      fontSize: '13px', fontFamily: 'monospace',
+    this.add.text(bx2 + 12, BY - 2, '🚀', {
+      fontSize: '16px', fontFamily: 'monospace',
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.add.text(bx2 + 32, BY - 9, 'MISSILE', {
-      fontSize: '9px', color: '#ddaaff', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 3,
+    this.add.text(bx2 + 36, BY - 9, 'MISSILE', {
+      fontSize: '11px', color: '#cc88ff', fontFamily: 'monospace',
+      stroke: '#080016', strokeThickness: 3,
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.missileCountText = this.add.text(bx2 + 32, BY + 8, `×${this.aircraft?.missiles ?? BALANCE.aircraft.startingMissiles}`, {
-      fontSize: '7px', color: '#ffdd88', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 2,
+    this.missileCountText = this.add.text(bx2 + 36, BY + 9, `×${this.aircraft?.missiles ?? BALANCE.aircraft.startingMissiles}`, {
+      fontSize: '9px', color: '#ffdd66', fontFamily: 'monospace',
+      stroke: '#100800', strokeThickness: 2,
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    missileHitArea.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+    missileHit.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       ptr.event.stopPropagation();
       this.handleMissileButton();
       this.missileCountText.setText(`×${this.aircraft.missiles}`);
-      this.tweens.add({ targets: missileHitArea, scaleX: 0.93, scaleY: 0.93, duration: 60, yoyo: true });
+      this.tweens.add({ targets: missileHit, scaleX: 0.92, scaleY: 0.92, duration: 55, yoyo: true });
     });
 
-    // ── Bottom divider bar ─────────────────────────────────────────────────
-    gfx.lineStyle(1, 0x334466, 0.6);
-    gfx.lineBetween(0, GAME_HEIGHT - BH - 4, GAME_WIDTH, GAME_HEIGHT - BH - 4);
-
     // ── TAP HINT (fades after 4 s) ────────────────────────────────────────
-    const tapHint = this.add.text(GAME_WIDTH / 2, WATER_Y_MIN + 50, 'TAP SILO TO INTERCEPT', {
-      fontSize: '6px', color: '#ffffff', fontFamily: 'monospace',
+    const hintY = GAME_HEIGHT - BTN_H - RES_H - 20;
+    const tapHint = this.add.text(GAME_WIDTH / 2, hintY, 'TAP A SILO TO INTERCEPT', {
+      fontSize: '8px', color: '#ffffff', fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 3,
-    }).setOrigin(0.5).setDepth(62).setAlpha(0.85);
+    }).setOrigin(0.5).setDepth(62).setAlpha(0.9);
     this.tweens.add({
       targets: tapHint, alpha: 0, delay: 4000, duration: 900,
       onComplete: () => tapHint.destroy(),

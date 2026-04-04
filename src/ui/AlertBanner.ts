@@ -1,8 +1,8 @@
 import Phaser from 'phaser';
 import { GAME_WIDTH } from '../config/GameConfig';
 
-const BANNER_Y  = 66;   // centre Y — just below the HUD oil row
-const BANNER_H  = 20;
+const BANNER_Y  = 60;   // centre Y — just below the top bar (top bar is 48px)
+const BANNER_H  = 22;
 
 export class AlertBanner {
   private scene: Phaser.Scene;
