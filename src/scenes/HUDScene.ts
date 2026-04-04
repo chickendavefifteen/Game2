@@ -15,77 +15,99 @@ export class HUDScene extends Phaser.Scene {
 
   constructor() { super({ key: 'HUDScene' }); }
 
-  create(): void {
-    // ── TOP BAR ─────────────────────────────────────────────────────────────
-    // Solid dark background stripe
-    this.add.rectangle(0, 0, GAME_WIDTH, 34, 0x0a0e1a, 0.92)
-      .setOrigin(0, 0).setDepth(98);
-    // Bottom border accent
-    this.add.rectangle(0, 34, GAME_WIDTH, 1, 0x334466).setOrigin(0, 0).setDepth(98);
+  private livesCount = 3;
+  private reservesRatio = 1.0;
 
-    // Score — left
-    this.add.text(8, 5, 'SCORE', {
-      fontSize: '4px', color: '#668899', fontFamily: 'monospace',
+  create(): void {
+    // ── TOP PANEL background ──────────────────────────────────────────────
+    const topGfx = this.add.graphics().setDepth(98);
+    // rich dark gradient panel
+    topGfx.fillGradientStyle(0x060d1e, 0x060d1e, 0x0d1830, 0x0d1830, 1);
+    topGfx.fillRect(0, 0, GAME_WIDTH, 34);
+    // accent border bottom
+    topGfx.fillStyle(0x2255aa, 0.7);
+    topGfx.fillRect(0, 33, GAME_WIDTH, 1);
+    // subtle left accent
+    topGfx.fillStyle(0x3388ff, 0.4);
+    topGfx.fillRect(0, 0, 3, 34);
+
+    // ── SCORE — left ──────────────────────────────────────────────────────
+    this.add.text(8, 4, 'SCORE', {
+      fontSize: '5px', color: '#4477aa', fontFamily: 'monospace',
     }).setDepth(100);
     this.scoreText = this.add.text(8, 13, '0', {
-      fontSize: '9px', color: '#ffff88', fontFamily: 'monospace',
+      fontSize: '11px', color: '#ffee66', fontFamily: 'monospace',
+      stroke: '#110a00', strokeThickness: 3,
     }).setDepth(100);
 
-    // Wave — centre
-    this.waveText = this.add.text(GAME_WIDTH / 2, 10, 'WAVE 1', {
-      fontSize: '8px', color: '#88ddff', fontFamily: 'monospace',
-      stroke: '#000000', strokeThickness: 2,
+    // ── WAVE — centre ─────────────────────────────────────────────────────
+    this.add.text(GAME_WIDTH / 2, 4, 'WAVE', {
+      fontSize: '5px', color: '#4477aa', fontFamily: 'monospace',
+    }).setOrigin(0.5, 0).setDepth(100);
+    this.waveText = this.add.text(GAME_WIDTH / 2, 13, '1', {
+      fontSize: '11px', color: '#55ccff', fontFamily: 'monospace',
+      stroke: '#001122', strokeThickness: 3,
     }).setOrigin(0.5, 0).setDepth(100);
 
-    // Lives — right (heart icons)
-    this.add.text(GAME_WIDTH - 8, 5, 'LIVES', {
-      fontSize: '4px', color: '#668899', fontFamily: 'monospace',
+    // ── LIVES — right ─────────────────────────────────────────────────────
+    this.add.text(GAME_WIDTH - 8, 4, 'LIVES', {
+      fontSize: '5px', color: '#4477aa', fontFamily: 'monospace',
     }).setOrigin(1, 0).setDepth(100);
-    this.livesRow = this.add.text(GAME_WIDTH - 8, 13, '♥ ♥ ♥', {
-      fontSize: '9px', color: '#ff5566', fontFamily: 'monospace',
+    this.livesRow = this.add.text(GAME_WIDTH - 8, 12, '♥ ♥ ♥', {
+      fontSize: '10px', color: '#ff3355', fontFamily: 'monospace',
+      stroke: '#220011', strokeThickness: 2,
     }).setOrigin(1, 0).setDepth(100);
 
-    // ── OIL STATS ROW ────────────────────────────────────────────────────────
-    this.add.rectangle(0, 35, GAME_WIDTH, 20, 0x060a12, 0.85)
-      .setOrigin(0, 0).setDepth(98);
-    this.add.rectangle(0, 55, GAME_WIDTH, 1, 0x223344).setOrigin(0, 0).setDepth(98);
+    // ── OIL STATS ROW ────────────────────────────────────────────────────
+    const oilGfx = this.add.graphics().setDepth(98);
+    oilGfx.fillGradientStyle(0x040810, 0x040810, 0x081018, 0x081018, 0.92);
+    oilGfx.fillRect(0, 35, GAME_WIDTH, 22);
+    oilGfx.fillStyle(0x1a3344, 0.6);
+    oilGfx.fillRect(0, 56, GAME_WIDTH, 1);
 
-    // Delivered
-    this.add.text(8, 39, '🛢 DELIVERED', {
-      fontSize: '5px', color: '#55aa88', fontFamily: 'monospace',
+    // centre divider
+    oilGfx.fillStyle(0x1a3344, 0.5);
+    oilGfx.fillRect(GAME_WIDTH / 2, 37, 1, 18);
+
+    this.add.text(8, 38, '🛢 DELIVERED', {
+      fontSize: '5px', color: '#338866', fontFamily: 'monospace',
     }).setDepth(100);
     this.oilDelivered = this.add.text(8, 47, '0.0 Mbbl', {
-      fontSize: '6px', color: '#88ffcc', fontFamily: 'monospace',
+      fontSize: '7px', color: '#55ffcc', fontFamily: 'monospace',
+      stroke: '#001a0e', strokeThickness: 2,
     }).setDepth(100);
 
-    // Separator
-    this.add.rectangle(GAME_WIDTH / 2, 38, 1, 16, 0x334455).setDepth(100);
-
-    // Spilled
-    this.add.text(GAME_WIDTH / 2 + 6, 39, '☠ SPILLED', {
-      fontSize: '5px', color: '#aa5533', fontFamily: 'monospace',
+    this.add.text(GAME_WIDTH / 2 + 6, 38, '☠ SPILLED', {
+      fontSize: '5px', color: '#884422', fontFamily: 'monospace',
     }).setDepth(100);
     this.oilLostText = this.add.text(GAME_WIDTH / 2 + 6, 47, '0.0 Mbbl', {
-      fontSize: '6px', color: '#ff8844', fontFamily: 'monospace',
+      fontSize: '7px', color: '#ff7733', fontFamily: 'monospace',
+      stroke: '#1a0800', strokeThickness: 2,
     }).setDepth(100);
 
     // ── GULF RESERVES BAR ─────────────────────────────────────────────────
-    const barY = GAME_HEIGHT - 62;
-    this.add.rectangle(0, barY - 2, GAME_WIDTH, 22, 0x060a12, 0.88)
-      .setOrigin(0, 0).setDepth(98);
-    this.add.rectangle(0, barY - 2, GAME_WIDTH, 1, 0x223344).setOrigin(0, 0).setDepth(98);
+    const barPanelY = GAME_HEIGHT - 56;
+    const resGfx = this.add.graphics().setDepth(98);
+    resGfx.fillGradientStyle(0x040810, 0x040810, 0x06101a, 0x06101a, 0.92);
+    resGfx.fillRect(0, barPanelY - 1, GAME_WIDTH, 22);
+    resGfx.fillStyle(0x1a3344, 0.5);
+    resGfx.fillRect(0, barPanelY - 1, GAME_WIDTH, 1);
 
-    this.add.text(8, barY + 1, 'GULF RESERVES', {
-      fontSize: '5px', color: '#8899aa', fontFamily: 'monospace',
+    this.add.text(8, barPanelY + 2, '⛽ GULF RESERVES', {
+      fontSize: '5px', color: '#557788', fontFamily: 'monospace',
     }).setDepth(100);
-
-    this.reservesLabel = this.add.text(GAME_WIDTH - 8, barY + 1, '50.0 Mbbl', {
-      fontSize: '5px', color: '#ffdd88', fontFamily: 'monospace',
+    this.reservesLabel = this.add.text(GAME_WIDTH - 8, barPanelY + 2, '50.0 Mbbl', {
+      fontSize: '5px', color: '#ffcc55', fontFamily: 'monospace',
+      stroke: '#110800', strokeThickness: 2,
     }).setOrigin(1, 0).setDepth(100);
 
-    // Bar track
-    this.add.rectangle(8, barY + 10, GAME_WIDTH - 16, 7, 0x1a1a2a)
-      .setOrigin(0, 0).setDepth(99);
+    // Bar track (rounded)
+    const barTrack = this.add.graphics().setDepth(99);
+    barTrack.fillStyle(0x0d1520, 1);
+    barTrack.fillRoundedRect(7, barPanelY + 12, GAME_WIDTH - 14, 8, 4);
+    barTrack.lineStyle(1, 0x1a2a3a, 0.8);
+    barTrack.strokeRoundedRect(7, barPanelY + 12, GAME_WIDTH - 14, 8, 4);
+
     this.reservesBar = this.add.graphics().setDepth(100);
     this.drawReservesBar(1.0);
 
@@ -95,53 +117,79 @@ export class HUDScene extends Phaser.Scene {
     }, this);
 
     EventBus.on('livesChanged', ({ lives }) => {
-      this.livesRow.setText(['', '♥', '♥ ♥', '♥ ♥ ♥'][Math.max(0, Math.min(3, lives))]);
+      this.livesCount = lives;
+      const hearts = ['', '♥', '♥ ♥', '♥ ♥ ♥'];
+      this.livesRow.setText(hearts[Math.max(0, Math.min(3, lives))]);
+      this.livesRow.setColor(lives <= 1 ? '#ff0000' : lives === 2 ? '#ff8800' : '#ff3355');
     }, this);
 
     EventBus.on('oilChanged', ({ transported, lost, reserves }) => {
       this.oilDelivered.setText(`${(transported / 1e6).toFixed(1)} Mbbl`);
       this.oilLostText.setText(`${(lost / 1e6).toFixed(1)} Mbbl`);
       this.reservesLabel.setText(`${(reserves / 1e6).toFixed(1)} Mbbl`);
-      this.drawReservesBar(reserves / this.reservesMax);
+      this.reservesRatio = reserves / this.reservesMax;
+      this.drawReservesBar(this.reservesRatio);
     }, this);
 
     EventBus.on('waveComplete', ({ waveNumber }) => {
-      this.waveText.setText(`WAVE ${waveNumber + 1}`);
+      this.waveText.setText(`${waveNumber + 1}`);
+      // flash wave number on increment
+      this.tweens.add({
+        targets: this.waveText, scaleX: 1.4, scaleY: 1.4,
+        duration: 200, yoyo: true,
+      });
     }, this);
   }
 
   private drawReservesBar(ratio: number): void {
-    const barY = GAME_HEIGHT - 62 + 10;
-    const bw   = GAME_WIDTH - 16;
+    const barPanelY = GAME_HEIGHT - 56;
+    const barY = barPanelY + 12;
+    const bw   = GAME_WIDTH - 14;
+    const bh   = 8;
+    const bx   = 7;
+    const r    = 4;
     this.reservesBar.clear();
 
-    // Segmented bar — clearer than a plain fill
-    const segments = 10;
-    const sw = Math.floor(bw / segments) - 1;
-    const filled = Math.round(ratio * segments);
-
-    for (let i = 0; i < segments; i++) {
-      const isFilled = i < filled;
-      const segRatio = i / (segments - 1);
-      let color: number;
-      if (!isFilled) {
-        color = 0x1e2030;
-      } else if (segRatio < 0.3) {
-        color = 0xcc2200;
-      } else if (segRatio < 0.6) {
-        color = 0xddaa00;
+    // Filled portion
+    const fillW = Math.max(0, Math.round(bw * ratio));
+    if (fillW > 0) {
+      // color: green → yellow → red (left to right = high to low)
+      const isCritical = ratio < 0.2;
+      const isLow      = ratio < 0.45;
+      let col1: number, col2: number;
+      if (isCritical) {
+        col1 = 0xdd2200; col2 = 0xff3300;
+      } else if (isLow) {
+        col1 = 0xcc8800; col2 = 0xffaa00;
       } else {
-        color = 0x22aa44;
+        col1 = 0x118833; col2 = 0x22cc55;
       }
-      this.reservesBar.fillStyle(color);
-      this.reservesBar.fillRect(8 + i * (sw + 1), barY, sw, 7);
+      this.reservesBar.fillGradientStyle(col1, col2, col1, col2, 1);
+      this.reservesBar.fillRoundedRect(bx, barY, fillW, bh, r);
+
+      // gloss highlight on top half
+      this.reservesBar.fillStyle(0xffffff, 0.12);
+      this.reservesBar.fillRoundedRect(bx + 1, barY + 1, fillW - 2, bh / 2, r);
     }
 
-    // Danger pulse on last segment when critical
-    if (ratio < 0.2 && Math.floor(Date.now() / 300) % 2 === 0) {
-      this.reservesBar.fillStyle(0xff2200, 0.5);
-      this.reservesBar.fillRect(8, barY, bw, 7);
+    // Segment tick marks
+    const segs = 10;
+    this.reservesBar.lineStyle(1, 0x000000, 0.3);
+    for (let i = 1; i < segs; i++) {
+      const tx = bx + Math.round((bw / segs) * i);
+      this.reservesBar.lineBetween(tx, barY + 1, tx, barY + bh - 1);
     }
+
+    // Critical flash overlay
+    if (ratio < 0.2 && Math.floor(Date.now() / 280) % 2 === 0) {
+      this.reservesBar.fillStyle(0xff2200, 0.22);
+      this.reservesBar.fillRoundedRect(bx, barY, bw, bh, r);
+    }
+  }
+
+  update(): void {
+    // Re-draw bar each frame so critical pulse animates
+    if (this.reservesRatio < 0.2) this.drawReservesBar(this.reservesRatio);
   }
 
   shutdown(): void {

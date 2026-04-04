@@ -709,20 +709,40 @@ function roundRect(ctx, x, y, w, h, r) {
   save(c, 'explosion.png');
 }
 
-// ─── OIL SLICK 32x10 per frame, 4 frames = 128x10 ───────────────────────────
+// ─── OIL SLICK 40×14 per frame, 4 frames = 160×14 ───────────────────────────
+// Iridescent dark ellipses that grow across frames
 {
-  const { c, ctx } = mk(128, 10);
-  [4, 8, 12, 16].forEach((r, fi) => {
-    const cx = fi*32+16, cy = 5;
-    const ry = Math.round(r * 0.35);
-    for (let dy = -ry; dy <= ry; dy++) {
-      for (let dx = -r; dx <= r; dx++) {
-        if ((dx*dx)/(r*r) + (dy*dy)/(Math.max(ry,1)*Math.max(ry,1)) > 1) continue;
-        const hue = 180 + ((dx+r)/(2*r)) * 80;
-        ctx.fillStyle = `hsla(${hue},80%,20%,0.9)`;
-        ctx.fillRect(cx+dx, cy+dy, 1, 1);
-      }
-    }
+  const FW = 40, FH = 14;
+  const { c, ctx } = mk(FW * 4, FH);
+  const radii = [5, 9, 13, 17];
+  radii.forEach((r, fi) => {
+    const cx = fi * FW + FW / 2;
+    const cy = FH / 2;
+    const ry = Math.round(r * 0.38);
+    // iridescent sheen gradient
+    const ig = ctx.createRadialGradient(cx - r * 0.2, cy - ry * 0.3, 0, cx, cy, r);
+    ig.addColorStop(0,   'rgba(80,200,220,0.55)');
+    ig.addColorStop(0.3, 'rgba(20,60,40,0.75)');
+    ig.addColorStop(0.65,'rgba(60,20,80,0.7)');
+    ig.addColorStop(1,   'rgba(10,10,10,0.15)');
+    ctx.fillStyle = ig;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    // rainbow sheen overlay
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    const rg = ctx.createLinearGradient(cx - r, cy, cx + r, cy);
+    rg.addColorStop(0,    '#ff0044');
+    rg.addColorStop(0.25, '#ffaa00');
+    rg.addColorStop(0.5,  '#00ffcc');
+    rg.addColorStop(0.75, '#0044ff');
+    rg.addColorStop(1,    '#aa00ff');
+    ctx.fillStyle = rg;
+    ctx.beginPath();
+    ctx.ellipse(cx, cy, r, ry, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.restore();
   });
   save(c, 'oil_slick.png');
 }
@@ -782,25 +802,147 @@ function roundRect(ctx, x, y, w, h, r) {
   save(c, 'terrain.png');
 }
 
-// ─── RETICLE 24x24 ──────────────────────────────────────────────────────────
+// ─── CITY SPRITE 36×36 per frame, 2 frames = 72×36 ───────────────────────────
+// Frame 0: intact skyline  Frame 1: destroyed / rubble
 {
-  const { c, ctx } = mk(24, 24);
-  // Corner brackets
-  for (let i=0;i<7;i++) { px(ctx,i,0,'#ff4444'); px(ctx,0,i,'#ff4444'); }
-  for (let i=17;i<24;i++) { px(ctx,i,0,'#ff4444'); px(ctx,23,i-17,'#ff4444'); }
-  for (let i=0;i<7;i++) { px(ctx,i,23,'#ff4444'); px(ctx,0,23-i,'#ff4444'); }
-  for (let i=17;i<24;i++) { px(ctx,i,23,'#ff4444'); px(ctx,23,17+(i-17),'#ff4444'); }
-  // Center
-  rect(ctx, 10,10, 4,4, '#ff444488');
-  rect(ctx, 11,11, 2,2, '#ff4444');
+  const FW = 36, FH = 36;
+  const { c, ctx } = mk(FW * 2, FH);
+
+  function drawBuilding(ox, bx, bw, bh, winCols, winRows, col1, col2) {
+    // building body
+    const bg = ctx.createLinearGradient(ox + bx, FH - bh, ox + bx + bw, FH);
+    bg.addColorStop(0, col1);
+    bg.addColorStop(1, col2);
+    ctx.beginPath();
+    roundRect(ctx, ox + bx, FH - bh, bw, bh, 2);
+    ctx.fillStyle = bg; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#1a0a00'; ctx.stroke();
+    // windows
+    for (let wr = 0; wr < winRows; wr++) {
+      for (let wc = 0; wc < winCols; wc++) {
+        const wx = ox + bx + 2 + wc * 4;
+        const wy = FH - bh + 3 + wr * 5;
+        if (wx + 2 < ox + bx + bw - 1) {
+          ctx.beginPath(); roundRect(ctx, wx, wy, 2, 3, 0.5);
+          const lit = Math.random() > 0.35;
+          ctx.fillStyle = lit ? '#ffe8a0' : '#224466';
+          ctx.fill();
+        }
+      }
+    }
+    // roof detail
+    ctx.beginPath(); ctx.rect(ox + bx + bw / 2 - 1, FH - bh - 3, 2, 4);
+    ctx.fillStyle = '#888'; ctx.fill();
+  }
+
+  // ── Frame 0: intact city ──
+  // ground
+  const gg = ctx.createLinearGradient(0, FH - 6, 0, FH);
+  gg.addColorStop(0, '#554433'); gg.addColorStop(1, '#332211');
+  ctx.fillStyle = gg; ctx.fillRect(0, FH - 6, FW, 6);
+  // buildings (left to right: short, tall, medium)
+  drawBuilding(0,  2, 8, 18, 2, 3, '#778899', '#445566');
+  drawBuilding(0, 12, 10, 26, 2, 4, '#8899aa', '#556677');
+  drawBuilding(0, 24, 10, 20, 2, 3, '#667788', '#445566');
+
+  // ── Frame 1: destroyed ──
+  const ox = FW;
+  // scorched ground
+  const sg = ctx.createLinearGradient(ox, FH - 6, ox, FH);
+  sg.addColorStop(0, '#442211'); sg.addColorStop(1, '#221100');
+  ctx.fillStyle = sg; ctx.fillRect(ox, FH - 6, FW, 6);
+  // rubble chunks
+  for (const [rx, ry, rw, rh] of [[ox+2,FH-12,9,6],[ox+13,FH-10,8,4],[ox+23,FH-14,10,8]]) {
+    ctx.beginPath(); roundRect(ctx, rx, ry, rw, rh, 2);
+    const rg2 = ctx.createLinearGradient(rx, ry, rx + rw, ry + rh);
+    rg2.addColorStop(0, '#776655'); rg2.addColorStop(1, '#443322');
+    ctx.fillStyle = rg2; ctx.fill();
+    ctx.lineWidth = 1.5; ctx.strokeStyle = '#221100'; ctx.stroke();
+  }
+  // fire glow
+  const fg = ctx.createRadialGradient(ox + 18, FH - 14, 1, ox + 18, FH - 14, 12);
+  fg.addColorStop(0, 'rgba(255,200,50,0.7)');
+  fg.addColorStop(0.4,'rgba(255,60,0,0.5)');
+  fg.addColorStop(1,  'rgba(0,0,0,0)');
+  ctx.fillStyle = fg;
+  ctx.beginPath(); ctx.arc(ox + 18, FH - 14, 12, 0, Math.PI * 2); ctx.fill();
+  // smoke wisps
+  for (const [sx, sy] of [[ox+8,FH-20],[ox+18,FH-22],[ox+26,FH-18]]) {
+    const smg = ctx.createRadialGradient(sx, sy, 0, sx, sy, 5);
+    smg.addColorStop(0, 'rgba(80,70,60,0.65)');
+    smg.addColorStop(1, 'rgba(40,35,30,0)');
+    ctx.fillStyle = smg;
+    ctx.beginPath(); ctx.arc(sx, sy, 5, 0, Math.PI * 2); ctx.fill();
+  }
+
+  save(c, 'city.png');
+}
+
+// ─── RETICLE 32×32 ───────────────────────────────────────────────────────────
+{
+  const S = 32;
+  const { c, ctx } = mk(S, S);
+  const cx = S / 2, cy = S / 2;
+
+  // outer ring (faint)
+  ctx.beginPath(); ctx.arc(cx, cy, 14, 0, Math.PI * 2);
+  ctx.strokeStyle = 'rgba(255,60,60,0.4)'; ctx.lineWidth = 1; ctx.stroke();
+
+  // four corner L-brackets (red, thick)
+  const arm = 7, gap = 5;
+  ctx.strokeStyle = '#ff2222'; ctx.lineWidth = 2.5;
+  ctx.lineCap = 'square';
+  for (const [sx, sy, ex1, ey1, ex2, ey2] of [
+    [cx - gap, cy - gap, cx - gap - arm, cy - gap, cx - gap, cy - gap - arm],
+    [cx + gap, cy - gap, cx + gap + arm, cy - gap, cx + gap, cy - gap - arm],
+    [cx - gap, cy + gap, cx - gap - arm, cy + gap, cx - gap, cy + gap + arm],
+    [cx + gap, cy + gap, cx + gap + arm, cy + gap, cx + gap, cy + gap + arm],
+  ]) {
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex1, ey1); ctx.stroke();
+    ctx.beginPath(); ctx.moveTo(sx, sy); ctx.lineTo(ex2, ey2); ctx.stroke();
+  }
+
+  // centre dot + crosshair ticks
+  ctx.strokeStyle = 'rgba(255,60,60,0.7)'; ctx.lineWidth = 1;
+  ctx.beginPath(); ctx.moveTo(cx - 3, cy); ctx.lineTo(cx - 1, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx + 1, cy); ctx.lineTo(cx + 3, cy); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy - 3); ctx.lineTo(cx, cy - 1); ctx.stroke();
+  ctx.beginPath(); ctx.moveTo(cx, cy + 1); ctx.lineTo(cx, cy + 3); ctx.stroke();
+  ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#ff2222'; ctx.fill();
+
   save(c, 'reticle.png');
 }
 
-// ─── MOVE INDICATOR 12x12 ───────────────────────────────────────────────────
+// ─── MOVE INDICATOR 18×18 ────────────────────────────────────────────────────
 {
-  const { c, ctx } = mk(12, 12);
-  rect(ctx, 0,5, 12,2, '#ffff00');
-  rect(ctx, 5,0,  2,12, '#ffff00');
+  const S = 18;
+  const { c, ctx } = mk(S, S);
+  const cx = S / 2, cy = S / 2;
+
+  // outer glow ring
+  const rg = ctx.createRadialGradient(cx, cy, 3, cx, cy, S / 2);
+  rg.addColorStop(0, 'rgba(255,220,0,0.5)');
+  rg.addColorStop(1, 'rgba(255,180,0,0)');
+  ctx.fillStyle = rg;
+  ctx.beginPath(); ctx.arc(cx, cy, S / 2, 0, Math.PI * 2); ctx.fill();
+
+  // four arrow chevrons pointing inward
+  ctx.strokeStyle = '#ffdd00'; ctx.lineWidth = 2; ctx.lineCap = 'round';
+  for (const [angle] of [[0],[90],[180],[270]]) {
+    ctx.save();
+    ctx.translate(cx, cy);
+    ctx.rotate(angle * Math.PI / 180);
+    ctx.beginPath(); ctx.moveTo(-3, -7); ctx.lineTo(0, -4); ctx.lineTo(3, -7);
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  // centre dot
+  ctx.beginPath(); ctx.arc(cx, cy, 2, 0, Math.PI * 2);
+  ctx.fillStyle = '#ffee44'; ctx.fill();
+  ctx.lineWidth = 1; ctx.strokeStyle = '#aa8800'; ctx.stroke();
+
   save(c, 'move_indicator.png');
 }
 

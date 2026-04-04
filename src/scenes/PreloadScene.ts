@@ -21,7 +21,8 @@ export class PreloadScene extends Phaser.Scene {
     this.load.spritesheet('enemy_missile',    'assets/sprites/enemy_missile.png',    { frameWidth: 20,  frameHeight: 36 });
     this.load.spritesheet('aircraft_missile', 'assets/sprites/aircraft_missile.png', { frameWidth: 14,  frameHeight: 24 });
     this.load.spritesheet('terrain',          'assets/sprites/terrain.png',          { frameWidth: 16,  frameHeight: 16 });
-    this.load.spritesheet('oil_slick',        'assets/sprites/oil_slick.png',        { frameWidth: 32,  frameHeight: 10 });
+    this.load.spritesheet('oil_slick',        'assets/sprites/oil_slick.png',        { frameWidth: 40,  frameHeight: 14 });
+    this.load.spritesheet('city',             'assets/sprites/city.png',             { frameWidth: 36,  frameHeight: 36 });
 
     this.load.image('bomb',           'assets/sprites/bomb.png');
     this.load.image('reticle',        'assets/sprites/reticle.png');

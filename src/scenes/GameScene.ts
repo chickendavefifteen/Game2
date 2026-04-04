@@ -79,106 +79,236 @@ export class GameScene extends Phaser.Scene {
     }
   }
 
-  // ── Background: actual Hormuz strait silhouette ──────────────────────────
+  // ── Background: full-gradient Hormuz strait map ─────────────────────────
 
   private buildBackground(): void {
-    const gfx = this.add.graphics().setDepth(0);
+    // Use a canvas texture so we can apply real CSS gradients
+    const tex = this.textures.createCanvas('mapBg', GAME_WIDTH, GAME_HEIGHT)!;
+    const ctx = tex.getContext()!;
 
-    // ── Full-screen water base ──
-    gfx.fillStyle(0x1a3058);
-    gfx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
+    // ── Deep water fill ──────────────────────────────────────────────────────
+    const seaGrad = ctx.createLinearGradient(0, WATER_Y_MIN, 0, WATER_Y_MAX);
+    seaGrad.addColorStop(0,   '#0d2248');
+    seaGrad.addColorStop(0.4, '#143060');
+    seaGrad.addColorStop(1,   '#1a3a70');
+    ctx.fillStyle = seaGrad;
+    ctx.fillRect(0, 0, GAME_WIDTH, GAME_HEIGHT);
 
-    // ── Water shimmer rows ──
-    for (let y = 0; y < GAME_HEIGHT; y += 8) {
-      if (Math.floor(y / 8) % 3 === 0) {
-        gfx.fillStyle(0x1e3870, 0.5);
-        gfx.fillRect(0, y, GAME_WIDTH, 4);
+    // ── Wave stripes (horizontal shimmer bands) ──
+    for (let y = WATER_Y_MIN; y < WATER_Y_MAX; y += 9) {
+      ctx.fillStyle = 'rgba(80,140,220,0.08)';
+      ctx.fillRect(0, y, GAME_WIDTH, 4);
+    }
+
+    // ── Iranian land (north) — warm sandy desert ──────────────────────────
+    for (let x = 0; x < GAME_WIDTH; x++) {
+      const ny = northCoastY(x);
+      const t  = x / GAME_WIDTH;
+      // gradient: olive-grey (west) → warm tan (east)
+      const r = Math.round(120 + t * 20);
+      const g = Math.round(100 + t * 10);
+      const b = Math.round(60  + t * 5);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(x, 0, 1, ny);
+    }
+    // land highlight band at top (sky suggestion)
+    const skyGrad = ctx.createLinearGradient(0, 0, 0, 30);
+    skyGrad.addColorStop(0, 'rgba(60,80,140,0.45)');
+    skyGrad.addColorStop(1, 'rgba(60,80,140,0)');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(0, 0, GAME_WIDTH, 30);
+
+    // ── Gulf states land (south) — lighter sandy-gold ─────────────────────
+    for (let x = 0; x < GAME_WIDTH; x++) {
+      const sy = southCoastY(x);
+      const t  = x / GAME_WIDTH;
+      const r = Math.round(200 + t * 10);
+      const g = Math.round(170 + t * 5);
+      const b = Math.round(100 + t * 5);
+      ctx.fillStyle = `rgb(${r},${g},${b})`;
+      ctx.fillRect(x, sy, 1, GAME_HEIGHT - sy);
+    }
+
+    // ── Shallow water fringe — north coast ────────────────────────────────
+    for (let x = 0; x < GAME_WIDTH; x++) {
+      const ny = northCoastY(x);
+      const shallowGrad = ctx.createLinearGradient(x, ny, x, ny + 18);
+      shallowGrad.addColorStop(0, 'rgba(30,100,180,0.55)');
+      shallowGrad.addColorStop(1, 'rgba(20,60,140,0)');
+      ctx.fillStyle = shallowGrad;
+      ctx.fillRect(x, ny, 1, 18);
+    }
+
+    // ── Shallow water fringe — south coast ────────────────────────────────
+    for (let x = 0; x < GAME_WIDTH; x++) {
+      const sy = southCoastY(x);
+      const shallowGrad = ctx.createLinearGradient(x, sy - 18, x, sy);
+      shallowGrad.addColorStop(0, 'rgba(20,60,140,0)');
+      shallowGrad.addColorStop(1, 'rgba(30,100,180,0.45)');
+      ctx.fillStyle = shallowGrad;
+      ctx.fillRect(x, sy - 18, 1, 18);
+    }
+
+    // ── North cliff edge ─────────────────────────────────────────────────
+    ctx.strokeStyle = '#5a4a2a';
+    ctx.lineWidth   = 2.5;
+    ctx.beginPath();
+    ctx.moveTo(0, northCoastY(0));
+    for (let x = 1; x < GAME_WIDTH; x++) ctx.lineTo(x, northCoastY(x));
+    ctx.stroke();
+    // highlight
+    ctx.strokeStyle = 'rgba(255,230,160,0.35)';
+    ctx.lineWidth   = 1;
+    ctx.beginPath();
+    ctx.moveTo(0, northCoastY(0) - 1);
+    for (let x = 1; x < GAME_WIDTH; x++) ctx.lineTo(x, northCoastY(x) - 1);
+    ctx.stroke();
+
+    // ── South beach edge ──────────────────────────────────────────────────
+    ctx.strokeStyle = '#a08040';
+    ctx.lineWidth   = 2;
+    ctx.beginPath();
+    ctx.moveTo(0, southCoastY(0));
+    for (let x = 1; x < GAME_WIDTH; x++) ctx.lineTo(x, southCoastY(x));
+    ctx.stroke();
+
+    // ── Rock formations on north coast ────────────────────────────────────
+    const rocks = [[28,0.9],[55,1.1],[80,0.8],[120,1.0],[155,0.9],[190,1.1],[220,1.0],[248,0.85]];
+    for (const [rx, scale] of rocks) {
+      const ry = northCoastY(rx as number);
+      const rw = (8 + (rx as number % 8)) * (scale as number);
+      const rh = (5 + (rx as number % 5)) * (scale as number);
+      const rg = ctx.createRadialGradient(rx as number, ry - rh * 0.3, 0, rx as number, ry, rw);
+      rg.addColorStop(0, '#7a6850');
+      rg.addColorStop(1, '#3a2a18');
+      ctx.fillStyle = rg;
+      ctx.beginPath();
+      ctx.ellipse(rx as number, ry - rh * 0.4, rw * 0.6, rh * 0.7, 0, 0, Math.PI * 2);
+      ctx.fill();
+      // highlight
+      ctx.fillStyle = 'rgba(220,190,130,0.35)';
+      ctx.beginPath();
+      ctx.ellipse(rx as number - rw * 0.15, ry - rh * 0.6, rw * 0.25, rh * 0.25, -0.4, 0, Math.PI * 2);
+      ctx.fill();
+    }
+
+    // ── Desert dune texture — north land ─────────────────────────────────
+    ctx.strokeStyle = 'rgba(160,130,70,0.2)';
+    ctx.lineWidth   = 1;
+    for (let di = 0; di < 12; di++) {
+      const dy = 20 + di * 8;
+      const amp = 4 + di * 2;
+      ctx.beginPath();
+      for (let x = 0; x < GAME_WIDTH; x++) {
+        const ty = northCoastY(x);
+        const wy = dy + amp * Math.sin((x / GAME_WIDTH) * Math.PI * 3 + di);
+        if (wy < ty - 2) {
+          x === 0 ? ctx.moveTo(x, wy) : ctx.lineTo(x, wy);
+        } else {
+          ctx.moveTo(x + 1, wy);
+        }
       }
+      ctx.stroke();
     }
 
-    // ── North land (Iran) — fill from top down to the coast line ──
-    gfx.fillStyle(0x8B7355);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const ny = northCoastY(x);
-      gfx.fillRect(x, 0, 1, ny);
+    // ── Desert dune texture — south land ─────────────────────────────────
+    ctx.strokeStyle = 'rgba(230,190,100,0.18)';
+    for (let di = 0; di < 10; di++) {
+      const dy = GAME_HEIGHT - 20 - di * 10;
+      const amp = 5 + di * 2;
+      ctx.beginPath();
+      for (let x = 0; x < GAME_WIDTH; x++) {
+        const sy = southCoastY(x);
+        const wy = dy - amp * Math.sin((x / GAME_WIDTH) * Math.PI * 2.5 + di * 0.7);
+        if (wy > sy + 2) {
+          x === 0 ? ctx.moveTo(x, wy) : ctx.lineTo(x, wy);
+        } else {
+          ctx.moveTo(x + 1, wy);
+        }
+      }
+      ctx.stroke();
     }
 
-    // ── South land (Gulf states / Musandam) — fill from coast down ──
-    gfx.fillStyle(0xc4a472);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const sy = southCoastY(x);
-      gfx.fillRect(x, sy, 1, GAME_HEIGHT - sy);
+    // ── Hormuz Island ─────────────────────────────────────────────────────
+    const [hix, hiy] = [232, 202];
+    const hig = ctx.createRadialGradient(hix, hiy, 0, hix, hiy, 12);
+    hig.addColorStop(0, '#b09868');
+    hig.addColorStop(0.7, '#8b7348');
+    hig.addColorStop(1, '#4a3820');
+    ctx.fillStyle = hig;
+    ctx.beginPath(); ctx.ellipse(hix, hiy, 11, 7, 0.2, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#5a4828'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(hix, hiy, 11, 7, 0.2, 0, Math.PI * 2); ctx.stroke();
+    // tiny green shrubs
+    ctx.fillStyle = '#567a38';
+    ctx.beginPath(); ctx.arc(hix - 2, hiy - 1, 2.5, 0, Math.PI * 2); ctx.fill();
+    ctx.beginPath(); ctx.arc(hix + 3, hiy + 1, 1.8, 0, Math.PI * 2); ctx.fill();
+
+    // ── Qeshm Island ──────────────────────────────────────────────────────
+    const [qix, qiy] = [80, 173];
+    const qig = ctx.createRadialGradient(qix, qiy, 0, qix, qiy, 18);
+    qig.addColorStop(0, '#a09060');
+    qig.addColorStop(0.7, '#806840');
+    qig.addColorStop(1, '#3a2810');
+    ctx.fillStyle = qig;
+    ctx.beginPath(); ctx.ellipse(qix, qiy, 17, 8, 0.15, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = '#4a3818'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.ellipse(qix, qiy, 17, 8, 0.15, 0, Math.PI * 2); ctx.stroke();
+
+    // ── Shallow water around islands ──────────────────────────────────────
+    for (const [ix, iy, ir] of [[hix, hiy, 16], [qix, qiy, 22]]) {
+      const sg = ctx.createRadialGradient(ix as number, iy as number, (ir as number) * 0.7, ix as number, iy as number, ir as number * 1.8);
+      sg.addColorStop(0, 'rgba(30,120,200,0.3)');
+      sg.addColorStop(1, 'rgba(20,70,140,0)');
+      ctx.fillStyle = sg;
+      ctx.beginPath(); ctx.arc(ix as number, iy as number, ir as number * 1.8, 0, Math.PI * 2); ctx.fill();
     }
 
-    // ── North coast edge detail (rocky cliff line) ──
-    gfx.fillStyle(0x6a5a3a);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const ny = northCoastY(x);
-      gfx.fillRect(x, ny, 1, 3);
-    }
-    // Shallow water fringe below coast
-    gfx.fillStyle(0x1e4a88, 0.4);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const ny = northCoastY(x);
-      gfx.fillRect(x, ny + 3, 1, 10);
-    }
+    // ── Compass rose (bottom-right corner) ────────────────────────────────
+    const [crx, cry] = [GAME_WIDTH - 18, WATER_Y_MAX - 12];
+    ctx.fillStyle = 'rgba(180,200,240,0.18)';
+    ctx.beginPath(); ctx.arc(crx, cry, 10, 0, Math.PI * 2); ctx.fill();
+    ctx.strokeStyle = 'rgba(180,200,240,0.25)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.arc(crx, cry, 10, 0, Math.PI * 2); ctx.stroke();
+    ctx.fillStyle = 'rgba(180,200,240,0.5)';
+    ctx.font = '7px monospace';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillText('N', crx, cry - 6.5);
+    // N arrow
+    ctx.fillStyle = 'rgba(255,200,100,0.6)';
+    ctx.beginPath();
+    ctx.moveTo(crx, cry - 4); ctx.lineTo(crx - 2, cry + 2); ctx.lineTo(crx + 2, cry + 2);
+    ctx.closePath(); ctx.fill();
 
-    // ── South coast edge detail ──
-    gfx.fillStyle(0xa08040);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const sy = southCoastY(x);
-      gfx.fillRect(x, sy - 3, 1, 3);
-    }
-    gfx.fillStyle(0x1e4a88, 0.3);
-    for (let x = 0; x < GAME_WIDTH; x++) {
-      const sy = southCoastY(x);
-      gfx.fillRect(x, sy - 12, 1, 10);
-    }
+    tex.refresh();
+    this.add.image(0, 0, 'mapBg').setOrigin(0, 0).setDepth(0);
 
-    // ── Rock formations on north coast ──
-    gfx.fillStyle(0x706050);
-    [30, 75, 120, 170, 220, 250].forEach(x => {
-      const ny = northCoastY(x);
-      const w = 8 + (x % 10);
-      gfx.fillRect(x - w/2, ny - 6, w, 8);
-      gfx.fillStyle(0x807060);
-      gfx.fillRect(x - w/2 + 1, ny - 8, w - 2, 4);
-      gfx.fillStyle(0x706050);
-    });
-
-    // ── Hormuz Island (small island in the strait, eastern side) ──
-    const islandX = 230, islandY = 200;
-    gfx.fillStyle(0x9B8365);
-    gfx.fillEllipse(islandX, islandY, 18, 10);
-    gfx.fillStyle(0x8B7355);
-    gfx.fillEllipse(islandX, islandY, 14, 7);
-    gfx.fillStyle(0x6a9a55);
-    gfx.fillRect(islandX - 2, islandY - 2, 4, 3);
-
-    // ── Qeshm Island (larger, north-west area) ──
-    gfx.fillStyle(0x9B8365);
-    gfx.fillEllipse(80, 175, 28, 12);
-    gfx.fillStyle(0x8B7355);
-    gfx.fillEllipse(80, 175, 22, 9);
-
-    // ── Ship lane markers (faint dotted lines) ──
-    gfx.fillStyle(0x2244aa, 0.15);
+    // ── Ship lane markers (drawn on top, very faint) ──────────────────────
+    const lanes = this.add.graphics().setDepth(1);
     for (const laneY of [210, 250, 285]) {
-      gfx.fillRect(0, laneY, GAME_WIDTH, 2);
+      lanes.lineStyle(1, 0x5588dd, 0.12);
+      lanes.beginPath();
+      for (let x = 0; x < GAME_WIDTH; x += 12) {
+        lanes.moveTo(x, laneY);
+        lanes.lineTo(x + 7, laneY);
+      }
+      lanes.strokePath();
     }
 
-    // ── Labels ──
-    this.add.text(8, 12, 'IRAN', {
-      fontSize: '6px', color: '#ccbbaa88', fontFamily: 'monospace'
+    // ── Map labels ────────────────────────────────────────────────────────
+    this.add.text(10, 8, 'I R A N', {
+      fontSize: '7px', color: '#c8b080', fontFamily: 'monospace',
+      stroke: '#2a1a00', strokeThickness: 3,
+    }).setDepth(5).setAlpha(0.65);
+
+    this.add.text(6, GAME_HEIGHT - 18, 'GULF  STATES', {
+      fontSize: '6px', color: '#e0c88a', fontFamily: 'monospace',
+      stroke: '#2a1a00', strokeThickness: 3,
     }).setDepth(5).setAlpha(0.6);
 
-    this.add.text(8, GAME_HEIGHT - 22, 'GULF STATES', {
-      fontSize: '5px', color: '#ccbbaa88', fontFamily: 'monospace'
-    }).setDepth(5).setAlpha(0.6);
-
-    this.add.text(GAME_WIDTH / 2, 230, 'STRAIT OF HORMUZ', {
-      fontSize: '5px', color: '#ffffff22', fontFamily: 'monospace'
-    }).setOrigin(0.5).setDepth(2).setAlpha(0.25);
+    this.add.text(GAME_WIDTH / 2, 235, '— STRAIT OF HORMUZ —', {
+      fontSize: '5px', color: '#88aad0', fontFamily: 'monospace',
+    }).setOrigin(0.5).setDepth(2).setAlpha(0.22);
   }
 
   // ── Entity creation ──────────────────────────────────────────────────────
@@ -240,57 +370,93 @@ export class GameScene extends Phaser.Scene {
   private createHUD(): void {
     this.alertBanner = new AlertBanner(this);
 
-    const BY = GAME_HEIGHT - 34;   // button centre Y
-    const BH = 34;                  // button height
-    const BW = 116;                 // button width
+    const BY  = GAME_HEIGHT - 28;  // button centre Y
+    const BH  = 40;                 // button height (bigger, thumb-friendly)
+    const BW  = 122;                // button width
+    const gfx = this.add.graphics().setDepth(61).setScrollFactor(0);
 
-    // ── BOMB button — bottom left ──
-    const bombBg = this.add.rectangle(4, BY, BW, BH, 0x1a2a44, 0.95)
-      .setOrigin(0, 0.5).setDepth(60).setScrollFactor(0)
-      .setStrokeStyle(2, 0x4488cc).setInteractive();
+    // Helper: draw a rounded-rect button panel with gradient-look layering
+    const drawBtn = (bx: number, by: number, bw: number, bh: number, baseColor: number, accentColor: number) => {
+      const r = 8;
+      // outer glow
+      gfx.fillStyle(accentColor, 0.25);
+      gfx.fillRoundedRect(bx - 2, by - BH / 2 - 2, bw + 4, bh + 4, r + 2);
+      // dark base
+      gfx.fillStyle(baseColor, 0.97);
+      gfx.fillRoundedRect(bx, by - BH / 2, bw, bh, r);
+      // top highlight strip
+      gfx.fillStyle(0xffffff, 0.08);
+      gfx.fillRoundedRect(bx + 2, by - BH / 2 + 2, bw - 4, bh / 2, r);
+      // accent border
+      gfx.lineStyle(2, accentColor, 0.9);
+      gfx.strokeRoundedRect(bx, by - BH / 2, bw, bh, r);
+    };
 
-    this.add.text(14, BY - 7, '💣  BOMB', {
-      fontSize: '8px', color: '#aaddff', fontFamily: 'monospace',
+    // ── BOMB button — bottom left ──────────────────────────────────────────
+    const bx1 = 3;
+    drawBtn(bx1, BY, BW, BH, 0x0d1f3a, 0x3388cc);
+    const bombHitArea = this.add.rectangle(bx1 + BW / 2, BY, BW, BH, 0, 0)
+      .setDepth(60).setScrollFactor(0).setInteractive();
+
+    this.add.text(bx1 + 14, BY - 8, '💣', {
+      fontSize: '13px', fontFamily: 'monospace',
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.add.text(bx1 + 32, BY - 9, 'BOMB', {
+      fontSize: '9px', color: '#aaddff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.bombCountText = this.add.text(bx1 + 32, BY + 8, `×${this.aircraft?.bombs ?? BALANCE.aircraft.startingBombs}`, {
+      fontSize: '7px', color: '#ffdd88', fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 2,
     }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.bombCountText = this.add.text(14, BY + 8, `×${this.aircraft?.bombs ?? BALANCE.aircraft.startingBombs}`, {
-      fontSize: '6px', color: '#ffdd88', fontFamily: 'monospace',
-    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
-
-    bombBg.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+    bombHitArea.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       ptr.event.stopPropagation();
       this.handleBombButton();
       this.bombCountText.setText(`×${this.aircraft.bombs}`);
+      this.tweens.add({ targets: bombHitArea, scaleX: 0.93, scaleY: 0.93, duration: 60, yoyo: true });
     });
 
-    // ── MISSILE button — bottom right ──
-    const missileBg = this.add.rectangle(GAME_WIDTH - 4, BY, BW, BH, 0x2a1a44, 0.95)
-      .setOrigin(1, 0.5).setDepth(60).setScrollFactor(0)
-      .setStrokeStyle(2, 0xaa44cc).setInteractive();
+    // ── MISSILE button — bottom right ─────────────────────────────────────
+    const bx2 = GAME_WIDTH - 3 - BW;
+    drawBtn(bx2, BY, BW, BH, 0x1a0d38, 0x9933cc);
+    const missileHitArea = this.add.rectangle(bx2 + BW / 2, BY, BW, BH, 0, 0)
+      .setDepth(60).setScrollFactor(0).setInteractive();
 
-    this.add.text(GAME_WIDTH - 14, BY - 7, '🚀  MISSILE', {
-      fontSize: '8px', color: '#ddaaff', fontFamily: 'monospace',
+    this.add.text(bx2 + 14, BY - 8, '🚀', {
+      fontSize: '13px', fontFamily: 'monospace',
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.add.text(bx2 + 32, BY - 9, 'MISSILE', {
+      fontSize: '9px', color: '#ddaaff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
+
+    this.missileCountText = this.add.text(bx2 + 32, BY + 8, `×${this.aircraft?.missiles ?? BALANCE.aircraft.startingMissiles}`, {
+      fontSize: '7px', color: '#ffdd88', fontFamily: 'monospace',
       stroke: '#000', strokeThickness: 2,
-    }).setOrigin(1, 0.5).setDepth(62).setScrollFactor(0);
+    }).setOrigin(0, 0.5).setDepth(62).setScrollFactor(0);
 
-    this.missileCountText = this.add.text(GAME_WIDTH - 14, BY + 8, `×${this.aircraft?.missiles ?? BALANCE.aircraft.startingMissiles}`, {
-      fontSize: '6px', color: '#ffdd88', fontFamily: 'monospace',
-    }).setOrigin(1, 0.5).setDepth(62).setScrollFactor(0);
-
-    missileBg.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
+    missileHitArea.on('pointerdown', (ptr: Phaser.Input.Pointer) => {
       ptr.event.stopPropagation();
       this.handleMissileButton();
       this.missileCountText.setText(`×${this.aircraft.missiles}`);
+      this.tweens.add({ targets: missileHitArea, scaleX: 0.93, scaleY: 0.93, duration: 60, yoyo: true });
     });
 
-    // ── TAP HINT (fades after first tap) ──
-    const tapHint = this.add.text(GAME_WIDTH / 2, 320, 'TAP SILO TO INTERCEPT', {
-      fontSize: '5px', color: '#ffffff', fontFamily: 'monospace',
-      stroke: '#000', strokeThickness: 2,
-    }).setOrigin(0.5).setDepth(62).setAlpha(0.8);
+    // ── Bottom divider bar ─────────────────────────────────────────────────
+    gfx.lineStyle(1, 0x334466, 0.6);
+    gfx.lineBetween(0, GAME_HEIGHT - BH - 4, GAME_WIDTH, GAME_HEIGHT - BH - 4);
+
+    // ── TAP HINT (fades after 4 s) ────────────────────────────────────────
+    const tapHint = this.add.text(GAME_WIDTH / 2, WATER_Y_MIN + 50, 'TAP SILO TO INTERCEPT', {
+      fontSize: '6px', color: '#ffffff', fontFamily: 'monospace',
+      stroke: '#000', strokeThickness: 3,
+    }).setOrigin(0.5).setDepth(62).setAlpha(0.85);
     this.tweens.add({
-      targets: tapHint, alpha: 0, delay: 3500, duration: 1000,
+      targets: tapHint, alpha: 0, delay: 4000, duration: 900,
       onComplete: () => tapHint.destroy(),
     });
   }
