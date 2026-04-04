@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
+  <!-- Background -->
+  <rect width="512" height="512" fill="#02040e"/>
+  <!-- Outer ring -->
+  <circle cx="256" cy="256" r="220" fill="none" stroke="#cc1111" stroke-width="8"/>
+  <circle cx="256" cy="256" r="180" fill="none" stroke="#cc1111" stroke-width="3" stroke-dasharray="20 12"/>
+  <!-- Crosshair lines -->
+  <line x1="256" y1="36" x2="256" y2="136" stroke="#ff3322" stroke-width="6" stroke-linecap="round"/>
+  <line x1="256" y1="376" x2="256" y2="476" stroke="#ff3322" stroke-width="6" stroke-linecap="round"/>
+  <line x1="36" y1="256" x2="136" y2="256" stroke="#ff3322" stroke-width="6" stroke-linecap="round"/>
+  <line x1="376" y1="256" x2="476" y2="256" stroke="#ff3322" stroke-width="6" stroke-linecap="round"/>
+  <!-- Inner reticle -->
+  <circle cx="256" cy="256" r="55" fill="none" stroke="#ffcc00" stroke-width="5"/>
+  <circle cx="256" cy="256" r="12" fill="#ffcc00"/>
+  <!-- Aircraft silhouette (simple delta-wing shape) -->
+  <polygon points="256,170 236,240 220,260 256,248 292,260 276,240" fill="#ffffff" opacity="0.9"/>
+  <!-- Corner brackets -->
+  <path d="M80 80 L80 120 L120 120" fill="none" stroke="#ff3322" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M432 80 L432 120 L392 120" fill="none" stroke="#ff3322" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M80 432 L80 392 L120 392" fill="none" stroke="#ff3322" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+  <path d="M432 432 L432 392 L392 392" fill="none" stroke="#ff3322" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
